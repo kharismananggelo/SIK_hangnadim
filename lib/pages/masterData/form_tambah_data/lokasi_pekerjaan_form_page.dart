@@ -18,16 +18,10 @@ class _LokasiPekerjaanFormPageState extends State<LokasiPekerjaanFormPage> {
 
   bool _isLoading = false;
   bool _isEdit = false;
-  bool _isMounted = false;
-
-  // Focus nodes untuk keyboard handling
-  final FocusNode _locationFocusNode = FocusNode();
-  final FocusNode _descriptionFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _isMounted = true;
     _isEdit = widget.item != null;
     if (_isEdit) {
       _locationController.text = widget.item['location'] ?? '';
@@ -37,18 +31,13 @@ class _LokasiPekerjaanFormPageState extends State<LokasiPekerjaanFormPage> {
 
   @override
   void dispose() {
-    _isMounted = false;
     _locationController.dispose();
     _descriptionController.dispose();
-    _locationFocusNode.dispose();
-    _descriptionFocusNode.dispose();
     super.dispose();
   }
 
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      if (!_isMounted) return;
-      
       // Sembunyikan keyboard
       FocusScope.of(context).unfocus();
       
@@ -68,16 +57,12 @@ class _LokasiPekerjaanFormPageState extends State<LokasiPekerjaanFormPage> {
           await MasterDataService.createData('work-locations', data);
         }
 
-        Navigator.pop(context, true);
-        
-        // Tampilkan success alert auto close
+        // ✅ GUNAKAN SWEET ALERT UNTUK SUCCESS SEPERTI CONTOH
         _showSimpleSuccessAlert(
           _isEdit ? 'Lokasi pekerjaan berhasil diperbarui' : 'Lokasi pekerjaan berhasil ditambahkan'
         );
         
       } catch (e) {
-        if (!_isMounted) return;
-        
         setState(() {
           _isLoading = false;
         });
@@ -114,7 +99,10 @@ class _LokasiPekerjaanFormPageState extends State<LokasiPekerjaanFormPage> {
 
     try {
       await MasterDataService.deleteData('work-locations', widget.item['id']);
+      
+      // ✅ GUNAKAN SWEET ALERT UNTUK SUCCESS SEPERTI CONTOH
       _showSimpleSuccessAlert('Lokasi pekerjaan berhasil dihapus');
+      
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -240,8 +228,9 @@ class _LokasiPekerjaanFormPageState extends State<LokasiPekerjaanFormPage> {
     );
   }
 
-  // Success Alert
+  // ✅ PERBAIKAN: Success Alert seperti di TembusanDetailPage
   void _showSimpleSuccessAlert(String message) async {
+    // Tampilkan alert success
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -301,12 +290,14 @@ class _LokasiPekerjaanFormPageState extends State<LokasiPekerjaanFormPage> {
       ),
     );
 
+    // Tunggu 1 detik lalu tutup alert dan kembali ke halaman sebelumnya
     await Future.delayed(Duration(seconds: 1));
     
-    if (mounted) {
-      Navigator.of(context).pop();
-      Navigator.of(context).pop(true);
-    }
+    // Tutup dialog alert
+    Navigator.of(context).pop();
+    
+    // Kembali ke halaman sebelumnya
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -339,23 +330,23 @@ class _LokasiPekerjaanFormPageState extends State<LokasiPekerjaanFormPage> {
             ),
         ],
       ),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFF8FDFF),     
-              Color(0xFFF5FBFF),     
-              Color(0xFFF2F9FF),     
-              Colors.white,
-            ],
-            stops: [0.0, 0.3, 0.6, 1.0],
+      body: SafeArea(
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFF8FDFF),     
+                Color(0xFFF5FBFF),     
+                Color(0xFFF2F9FF),     
+                Colors.white,
+              ],
+              stops: [0.0, 0.3, 0.6, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
           child: GestureDetector(
             onTap: () {
               FocusScope.of(context).unfocus();
@@ -429,7 +420,6 @@ class _LokasiPekerjaanFormPageState extends State<LokasiPekerjaanFormPage> {
                             _buildFormField(
                               label: 'Nama Lokasi *',
                               controller: _locationController,
-                              focusNode: _locationFocusNode,
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Nama lokasi wajib diisi';
@@ -445,52 +435,57 @@ class _LokasiPekerjaanFormPageState extends State<LokasiPekerjaanFormPage> {
                             _buildTextAreaField(
                               label: 'Deskripsi Lokasi',
                               controller: _descriptionController,
-                              focusNode: _descriptionFocusNode,
                               hintText: 'Contoh: Dekat Gate A3',
                             ),
                             
-                            SizedBox(height: 20),
+                            SizedBox(height: 80), // Spacer untuk tombol
                           ],
                         ),
-                      ),
-                    ),
-                    
-                    // Submit Button
-                    Container(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _submitForm,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 2,
-                        ),
-                        child: _isLoading
-                            ? SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(_isEdit ? Icons.save : Icons.add, size: 20),
-                                  SizedBox(width: 8),
-                                  Text(_isEdit ? 'Simpan Perubahan' : 'Tambah Data'),
-                                ],
-                              ),
                       ),
                     ),
                   ],
                 ),
               ),
+            ),
+          ),
+        ),
+      ),
+      
+      // Tombol Submit
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: EdgeInsets.all(16),
+          color: Colors.transparent,
+          child: Container(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _submitForm,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              child: _isLoading
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(_isEdit ? Icons.save : Icons.add, size: 20),
+                        SizedBox(width: 8),
+                        Text(_isEdit ? 'Simpan Perubahan' : 'Tambah Data'),
+                      ],
+                    ),
             ),
           ),
         ),
@@ -501,7 +496,6 @@ class _LokasiPekerjaanFormPageState extends State<LokasiPekerjaanFormPage> {
   Widget _buildFormField({
     required String label,
     required TextEditingController controller,
-    required FocusNode focusNode,
     String? Function(String?)? validator,
     String hintText = '',
   }) {
@@ -539,7 +533,6 @@ class _LokasiPekerjaanFormPageState extends State<LokasiPekerjaanFormPage> {
             ),
             child: TextFormField(
               controller: controller,
-              focusNode: focusNode,
               decoration: InputDecoration(
                 hintText: hintText.isNotEmpty ? hintText : 'Masukkan $label',
                 border: InputBorder.none,
@@ -557,7 +550,6 @@ class _LokasiPekerjaanFormPageState extends State<LokasiPekerjaanFormPage> {
   Widget _buildTextAreaField({
     required String label,
     required TextEditingController controller,
-    required FocusNode focusNode,
     String hintText = '',
   }) {
     return Container(
@@ -594,7 +586,6 @@ class _LokasiPekerjaanFormPageState extends State<LokasiPekerjaanFormPage> {
             ),
             child: TextFormField(
               controller: controller,
-              focusNode: focusNode,
               maxLines: 3,
               decoration: InputDecoration(
                 hintText: hintText.isNotEmpty ? hintText : 'Masukkan $label',

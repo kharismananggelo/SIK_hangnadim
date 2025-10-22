@@ -18,38 +18,26 @@ class _DasarSuratFormPageState extends State<DasarSuratFormPage> {
 
   bool _isLoading = false;
   bool _isEdit = false;
-  bool _isMounted = false;
-
-  // Focus nodes untuk keyboard handling
-  final FocusNode _referenceFocusNode = FocusNode();
-  final FocusNode _positionFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _isMounted = true;
     _isEdit = widget.item != null;
     if (_isEdit) {
       _referenceController.text = widget.item['reference'] ?? '';
-      _positionController.text = widget.item['position'] ?? '';
+      _positionController.text = widget.item['position']?.toString() ?? '';
     }
   }
 
   @override
   void dispose() {
-    _isMounted = false;
     _referenceController.dispose();
     _positionController.dispose();
-    _referenceFocusNode.dispose();
-    _positionFocusNode.dispose();
     super.dispose();
   }
 
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      if (!_isMounted) return;
-      
-      // Sembunyikan keyboard
       FocusScope.of(context).unfocus();
       
       setState(() {
@@ -58,30 +46,27 @@ class _DasarSuratFormPageState extends State<DasarSuratFormPage> {
 
       try {
         final data = {
-          'reference': _referenceController.text,
-          'position': _positionController.text,
+          'reference': _referenceController.text.trim(),
+          'position': int.tryParse(_positionController.text.trim()) ?? 0,
         };
 
         if (_isEdit) {
-          await MasterDataService.updateData('work-permit-letters', widget.item['id'], data);
+          await MasterDataService.updateData('letter-fundamentals', widget.item['id'], data);
         } else {
-          await MasterDataService.createData('work-permit-letters', data);
+          await MasterDataService.createData('letter-fundamentals', data);
         }
 
-        Navigator.pop(context, true);
-        
-        // Tampilkan success alert auto close
+        // ✅ GUNAKAN ALERT SUCCESS SEPERTI FORM LAIN
         _showSimpleSuccessAlert(
           _isEdit ? 'Dasar surat berhasil diperbarui' : 'Dasar surat berhasil ditambahkan'
         );
         
       } catch (e) {
-        if (!_isMounted) return;
-        
         setState(() {
           _isLoading = false;
         });
         
+        // ✅ GUNAKAN SWEET ALERT UNTUK ERROR
         SweetAlert.showError(
           context: context,
           title: _isEdit ? 'Gagal Update' : 'Gagal Tambah Data',
@@ -92,10 +77,9 @@ class _DasarSuratFormPageState extends State<DasarSuratFormPage> {
   }
 
   Future<void> _deleteItem() async {
-    // Sembunyikan keyboard
     FocusScope.of(context).unfocus();
     
-    // Konfirmasi delete dengan custom dialog
+    // ✅ GUNAKAN CUSTOM CONFIRMATION DIALOG SEPERTI FORM LAIN
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => _buildCleanConfirmationDialog(
@@ -113,12 +97,16 @@ class _DasarSuratFormPageState extends State<DasarSuratFormPage> {
     });
 
     try {
-      await MasterDataService.deleteData('work-permit-letters', widget.item['id']);
+      await MasterDataService.deleteData('letter-fundamentals', widget.item['id']);
+      
+      // ✅ GUNAKAN ALERT SUCCESS SEPERTI FORM LAIN
       _showSimpleSuccessAlert('Dasar surat berhasil dihapus');
+      
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
+      
       SweetAlert.showError(
         context: context,
         title: 'Error',
@@ -240,8 +228,9 @@ class _DasarSuratFormPageState extends State<DasarSuratFormPage> {
     );
   }
 
-  // Success Alert
+  // ✅ ALERT SUCCESS SEPERTI FORM LAIN
   void _showSimpleSuccessAlert(String message) async {
+    // Tampilkan alert success
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -301,12 +290,14 @@ class _DasarSuratFormPageState extends State<DasarSuratFormPage> {
       ),
     );
 
+    // Tunggu 1 detik lalu tutup alert dan kembali ke halaman sebelumnya
     await Future.delayed(Duration(seconds: 1));
     
-    if (mounted) {
-      Navigator.of(context).pop();
-      Navigator.of(context).pop(true);
-    }
+    // Tutup dialog alert
+    Navigator.of(context).pop();
+    
+    // Kembali ke halaman sebelumnya
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -339,23 +330,23 @@ class _DasarSuratFormPageState extends State<DasarSuratFormPage> {
             ),
         ],
       ),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFF8FDFF),     
-              Color(0xFFF5FBFF),     
-              Color(0xFFF2F9FF),     
-              Colors.white,
-            ],
-            stops: [0.0, 0.3, 0.6, 1.0],
+      body: SafeArea(
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFF8FDFF),     
+                Color(0xFFF5FBFF),     
+                Color(0xFFF2F9FF),     
+                Colors.white,
+              ],
+              stops: [0.0, 0.3, 0.6, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
           child: GestureDetector(
             onTap: () {
               FocusScope.of(context).unfocus();
@@ -429,14 +420,16 @@ class _DasarSuratFormPageState extends State<DasarSuratFormPage> {
                             _buildTextAreaField(
                               label: 'Referensi Dasar Surat *',
                               controller: _referenceController,
-                              focusNode: _referenceFocusNode,
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Referensi dasar surat wajib diisi';
                                 }
+                                if (value.trim().isEmpty) {
+                                  return 'Referensi dasar surat tidak boleh hanya spasi';
+                                }
                                 return null;
                               },
-                              hintText: 'Masukkan referensi dasar surat yang lengkap',
+                              hintText: 'Contoh: Undang-Undang Republik Indonesia Nomor 1 Tahun 2009',
                             ),
                             
                             SizedBox(height: 16),
@@ -445,58 +438,66 @@ class _DasarSuratFormPageState extends State<DasarSuratFormPage> {
                             _buildFormField(
                               label: 'Posisi *',
                               controller: _positionController,
-                              focusNode: _positionFocusNode,
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Posisi wajib diisi';
                                 }
+                                if (int.tryParse(value.trim()) == null) {
+                                  return 'Posisi harus berupa angka';
+                                }
                                 return null;
                               },
-                              hintText: 'Masukkan posisi/jabatan',
+                              hintText: 'Contoh: 1, 2, 3 (harus angka)',
+                              keyboardType: TextInputType.number,
                             ),
                             
-                            SizedBox(height: 20),
+                            SizedBox(height: 80),
                           ],
                         ),
-                      ),
-                    ),
-                    
-                    // Submit Button - dalam SafeArea
-                    Container(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _submitForm,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 2,
-                        ),
-                        child: _isLoading
-                            ? SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(_isEdit ? Icons.save : Icons.add, size: 20),
-                                  SizedBox(width: 8),
-                                  Text(_isEdit ? 'Simpan Perubahan' : 'Tambah Data'),
-                                ],
-                              ),
                       ),
                     ),
                   ],
                 ),
               ),
+            ),
+          ),
+        ),
+      ),
+      
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: EdgeInsets.all(16),
+          color: Colors.transparent,
+          child: Container(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _submitForm,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              child: _isLoading
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(_isEdit ? Icons.save : Icons.add, size: 20),
+                        SizedBox(width: 8),
+                        Text(_isEdit ? 'Simpan Perubahan' : 'Tambah Data'),
+                      ],
+                    ),
             ),
           ),
         ),
@@ -507,9 +508,9 @@ class _DasarSuratFormPageState extends State<DasarSuratFormPage> {
   Widget _buildFormField({
     required String label,
     required TextEditingController controller,
-    required FocusNode focusNode,
     String? Function(String?)? validator,
     String hintText = '',
+    TextInputType keyboardType = TextInputType.text,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -545,7 +546,7 @@ class _DasarSuratFormPageState extends State<DasarSuratFormPage> {
             ),
             child: TextFormField(
               controller: controller,
-              focusNode: focusNode,
+              keyboardType: keyboardType,
               decoration: InputDecoration(
                 hintText: hintText.isNotEmpty ? hintText : 'Masukkan $label',
                 border: InputBorder.none,
@@ -563,7 +564,6 @@ class _DasarSuratFormPageState extends State<DasarSuratFormPage> {
   Widget _buildTextAreaField({
     required String label,
     required TextEditingController controller,
-    required FocusNode focusNode,
     String? Function(String?)? validator,
     String hintText = '',
   }) {
@@ -601,7 +601,6 @@ class _DasarSuratFormPageState extends State<DasarSuratFormPage> {
             ),
             child: TextFormField(
               controller: controller,
-              focusNode: focusNode,
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: hintText.isNotEmpty ? hintText : 'Masukkan $label',

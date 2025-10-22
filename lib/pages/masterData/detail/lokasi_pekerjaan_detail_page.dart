@@ -17,32 +17,22 @@ class _LokasiPekerjaanDetailPageState extends State<LokasiPekerjaanDetailPage> {
   late TextEditingController _descriptionController;
   bool _isEditing = false;
   bool _isLoading = false;
-  bool _isMounted = false;
-
-  // Focus nodes untuk keyboard handling
-  final FocusNode _locationFocusNode = FocusNode();
-  final FocusNode _descriptionFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _isMounted = true;
     _locationController = TextEditingController(text: widget.item['location']?.toString() ?? '');
     _descriptionController = TextEditingController(text: widget.item['description']?.toString() ?? '');
   }
 
   @override
   void dispose() {
-    _isMounted = false;
     _locationController.dispose();
     _descriptionController.dispose();
-    _locationFocusNode.dispose();
-    _descriptionFocusNode.dispose();
     super.dispose();
   }
 
   void _toggleEdit() {
-    if (!_isMounted) return;
     setState(() {
       _isEditing = !_isEditing;
     });
@@ -50,8 +40,6 @@ class _LokasiPekerjaanDetailPageState extends State<LokasiPekerjaanDetailPage> {
 
   Future<void> _saveForm() async {
     if (_formKey.currentState!.validate()) {
-      if (!_isMounted) return;
-      
       FocusScope.of(context).unfocus();
       
       setState(() {
@@ -59,28 +47,40 @@ class _LokasiPekerjaanDetailPageState extends State<LokasiPekerjaanDetailPage> {
       });
 
       try {
+        // ✅ PERBAIKAN: Trim data dan pastikan format benar
         final data = {
-          'location': _locationController.text,
-          'description': _descriptionController.text,
+          'location': _locationController.text.trim(),
+          'description': _descriptionController.text.trim(),
         };
 
+        // ✅ DEBUG: Print data sebelum dikirim
+        print('🔄 Data yang dikirim ke API work-locations:');
+        print('Location: ${data['location']}');
+        print('Description: ${data['description']}');
+        print('ID: ${widget.item['id']}');
+
         await MasterDataService.updateData('work-locations', widget.item['id'], data);
-        
-        if (!_isMounted) return;
         
         _showSimpleSuccessAlert('Data lokasi pekerjaan berhasil diupdate');
         
       } catch (e) {
-        if (!_isMounted) return;
-        
         setState(() {
           _isLoading = false;
         });
         
+        // ✅ PERBAIKAN: Error handling yang lebih detail
+        String errorMessage = 'Terjadi kesalahan: $e';
+        
+        if (e.toString().contains('422')) {
+          errorMessage = 'Validasi gagal. Pastikan:\n• Location tidak kosong\n• Location tidak duplikat\n\nError: $e';
+        } else if (e.toString().contains('500')) {
+          errorMessage = 'Server error. Silakan coba lagi.\n\nError: $e';
+        }
+        
         SweetAlert.showError(
           context: context,
           title: 'Gagal Update',
-          message: 'Terjadi kesalahan: $e',
+          message: errorMessage,
         );
       }
     }
@@ -366,23 +366,23 @@ class _LokasiPekerjaanDetailPageState extends State<LokasiPekerjaanDetailPage> {
           ],
         ],
       ),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFF8FDFF),     
-              Color(0xFFF5FBFF),     
-              Color(0xFFF2F9FF),     
-              Colors.white,
-            ],
-            stops: [0.0, 0.3, 0.6, 1.0],
+      body: SafeArea(
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFF8FDFF),     
+                Color(0xFFF5FBFF),     
+                Color(0xFFF2F9FF),     
+                Colors.white,
+              ],
+              stops: [0.0, 0.3, 0.6, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
           child: GestureDetector(
             onTap: () {
               FocusScope.of(context).unfocus();
@@ -436,13 +436,16 @@ class _LokasiPekerjaanDetailPageState extends State<LokasiPekerjaanDetailPage> {
               key: _formKey,
               child: Column(
                 children: [
+                  // ✅ PERBAIKAN: Validasi lebih ketat
                   _buildFormField(
                     label: 'Lokasi *',
                     controller: _locationController,
-                    focusNode: _locationFocusNode,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Lokasi harus diisi';
+                        return 'Lokasi wajib diisi';
+                      }
+                      if (value.trim().isEmpty) {
+                        return 'Lokasi tidak boleh hanya spasi';
                       }
                       return null;
                     },
@@ -451,7 +454,6 @@ class _LokasiPekerjaanDetailPageState extends State<LokasiPekerjaanDetailPage> {
                   _buildTextAreaField(
                     label: 'Deskripsi',
                     controller: _descriptionController,
-                    focusNode: _descriptionFocusNode,
                   ),
                   SizedBox(height: 20),
                 ],
@@ -509,7 +511,6 @@ class _LokasiPekerjaanDetailPageState extends State<LokasiPekerjaanDetailPage> {
   Widget _buildFormField({
     required String label,
     required TextEditingController controller,
-    required FocusNode focusNode,
     required String? Function(String?) validator,
   }) {
     return Container(
@@ -546,11 +547,11 @@ class _LokasiPekerjaanDetailPageState extends State<LokasiPekerjaanDetailPage> {
             ),
             child: TextFormField(
               controller: controller,
-              focusNode: focusNode,
               decoration: InputDecoration(
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 isDense: true,
+                hintText: 'Masukkan $label',
               ),
               validator: validator,
             ),
@@ -563,7 +564,6 @@ class _LokasiPekerjaanDetailPageState extends State<LokasiPekerjaanDetailPage> {
   Widget _buildTextAreaField({
     required String label,
     required TextEditingController controller,
-    required FocusNode focusNode,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -599,13 +599,13 @@ class _LokasiPekerjaanDetailPageState extends State<LokasiPekerjaanDetailPage> {
             ),
             child: TextFormField(
               controller: controller,
-              focusNode: focusNode,
               maxLines: 4,
               decoration: InputDecoration(
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 isDense: true,
                 alignLabelWithHint: true,
+                hintText: 'Masukkan $label',
               ),
             ),
           ),

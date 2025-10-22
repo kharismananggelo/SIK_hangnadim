@@ -4,7 +4,6 @@ import 'widgets/splash.dart';
 import 'pages/loginpage.dart';
 import 'pages/homepage.dart';
 import 'pages/approvals_page.dart';
-import 'pages/vendors_page.dart';
 import 'pages/signuppage.dart';
 import 'pages/qr_scanner_page.dart';
 import 'pages/profile_page.dart';
@@ -55,7 +54,6 @@ class MyApp extends StatelessWidget {
               '/home': (context) => HomePage(), // ✅ Tambah route untuk HomePage
               '/signup': (context) => Signup(),
               '/approvals': (context) => ApprovalsPage(),
-              '/vendors': (context) => VendorsPage(),
               '/dashboard': (context) => MainNavigationWrapper(),
             },
           );

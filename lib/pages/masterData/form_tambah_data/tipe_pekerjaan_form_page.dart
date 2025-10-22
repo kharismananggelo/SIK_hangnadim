@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../../../services/master_data_service.dart';
+import '../../../widgets/sweet_alert_dialog.dart';
 
 class TipePekerjaanFormPage extends StatefulWidget {
   final dynamic item;
@@ -45,6 +44,9 @@ class _TipePekerjaanFormPageState extends State<TipePekerjaanFormPage> {
 
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
+      // Sembunyikan keyboard
+      FocusScope.of(context).unfocus();
+      
       setState(() {
         _isLoading = true;
       });
@@ -63,27 +65,249 @@ class _TipePekerjaanFormPageState extends State<TipePekerjaanFormPage> {
           await MasterDataService.createData('work-types', data);
         }
 
-        Navigator.pop(context, true);
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_isEdit ? 'Tipe pekerjaan berhasil diperbarui' : 'Tipe pekerjaan berhasil ditambahkan'),
-            backgroundColor: Colors.green,
-          ),
+        // ✅ GUNAKAN ALERT SUCCESS SEPERTI YANG DIMINTA
+        _showSimpleSuccessAlert(
+          _isEdit ? 'Tipe pekerjaan berhasil diperbarui' : 'Tipe pekerjaan berhasil ditambahkan'
         );
+        
       } catch (e) {
         setState(() {
           _isLoading = false;
         });
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+        // ✅ GUNAKAN SWEET ALERT UNTUK ERROR
+        SweetAlert.showError(
+          context: context,
+          title: _isEdit ? 'Gagal Update' : 'Gagal Tambah Data',
+          message: 'Terjadi kesalahan: $e',
         );
       }
     }
+  }
+
+  Future<void> _deleteItem() async {
+    // Sembunyikan keyboard
+    FocusScope.of(context).unfocus();
+    
+    // Konfirmasi delete dengan custom dialog
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => _buildCleanConfirmationDialog(
+        title: 'Hapus Data',
+        message: 'Apakah Anda yakin ingin menghapus tipe pekerjaan "${widget.item['type']}"?',
+        confirmText: 'Hapus',
+        isDelete: true,
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await MasterDataService.deleteData('work-types', widget.item['id']);
+      
+      // ✅ GUNAKAN ALERT SUCCESS SEPERTI YANG DIMINTA
+      _showSimpleSuccessAlert('Tipe pekerjaan berhasil dihapus');
+      
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      
+      SweetAlert.showError(
+        context: context,
+        title: 'Error',
+        message: 'Terjadi kesalahan: $e',
+      );
+    }
+  }
+
+  // Custom Confirmation Dialog
+  Widget _buildCleanConfirmationDialog({
+    required String title,
+    required String message,
+    required String confirmText,
+    bool isDelete = false,
+  }) {
+    return Dialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      elevation: 0,
+      child: Container(
+        padding: EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 15,
+              offset: Offset(0, 6),
+              spreadRadius: 2,
+            )
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: isDelete ? Colors.red.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isDelete ? Icons.warning : Icons.info,
+                size: 30,
+                color: isDelete ? Colors.red : Colors.blue,
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue[900],
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+                height: 1.4,
+              ),
+            ),
+            SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: BorderSide(color: Colors.grey[400]!),
+                    ),
+                    child: Text(
+                      'Batal',
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDelete ? Colors.red : Colors.blue,
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      confirmText,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ✅ ALERT SUCCESS SEPERTI YANG DIMINTA
+  void _showSimpleSuccessAlert(String message) async {
+    // Tampilkan alert success
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          padding: EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 15,
+                offset: Offset(0, 6),
+                spreadRadius: 2,
+              )
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.check,
+                  size: 30,
+                  color: Colors.green,
+                ),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Berhasil',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[900],
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                message,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Tunggu 1 detik lalu tutup alert dan kembali ke halaman sebelumnya
+    await Future.delayed(Duration(seconds: 1));
+    
+    // Tutup dialog alert
+    Navigator.of(context).pop();
+    
+    // Kembali ke halaman sebelumnya
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -101,11 +325,18 @@ class _TipePekerjaanFormPageState extends State<TipePekerjaanFormPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.blue[900],
+        iconTheme: IconThemeData(color: Colors.blue[900]),
         actions: [
-          if (_isEdit)
+          if (_isLoading)
+            Padding(
+              padding: EdgeInsets.all(8.0),
+              child: CircularProgressIndicator(color: Colors.blue),
+            )
+          else if (_isEdit)
             IconButton(
               icon: Icon(Icons.delete, color: Colors.red),
               onPressed: _deleteItem,
+              tooltip: 'Hapus',
             ),
         ],
       ),
@@ -183,6 +414,7 @@ class _TipePekerjaanFormPageState extends State<TipePekerjaanFormPage> {
                   
                   SizedBox(height: 20),
                   
+                  // Form Fields (TANPA tombol submit)
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
@@ -226,48 +458,55 @@ class _TipePekerjaanFormPageState extends State<TipePekerjaanFormPage> {
                             hintText: 'Masukkan ketentuan setelah pekerjaan selesai',
                             icon: Icons.assignment_late,
                           ),
+
+                          // 🔥 TAMBAHKIN SPASI UNTUK MEMBERI RUANG UNTUK TOMBOL
+                          SizedBox(height: 80), // Spasi untuk tombol di bawah
                         ],
                       ),
                     ),
                   ),
-                  
-                  SizedBox(height: 20),
-                  
-                  // Submit Button - dalam SafeArea
-                  Container(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _submitForm,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
-                      ),
-                      child: _isLoading
-                          ? SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(_isEdit ? Icons.save : Icons.add, size: 20),
-                                SizedBox(width: 8),
-                                Text(_isEdit ? 'Simpan Perubahan' : 'Tambah Data'),
-                              ],
-                            ),
-                    ),
-                  ),
                 ],
               ),
+            ),
+          ),
+        ),
+      ),
+
+      // 🔥 PINDAHKAN TOMBOL SUBMIT KE BOTTOM NAVIGATION DI SAFE AREA
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: EdgeInsets.all(16),
+          color: Colors.transparent,
+          child: Container(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _submitForm,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              child: _isLoading
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(_isEdit ? Icons.save : Icons.add, size: 20),
+                        SizedBox(width: 8),
+                        Text(_isEdit ? 'Simpan Perubahan' : 'Tambah Data'),
+                      ],
+                    ),
             ),
           ),
         ),
@@ -354,47 +593,5 @@ class _TipePekerjaanFormPageState extends State<TipePekerjaanFormPage> {
         ),
       ),
     );
-  }
-
-  Future<void> _deleteItem() async {
-    final confirmed = await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Hapus Data'),
-        content: Text('Apakah Anda yakin ingin menghapus tipe pekerjaan ini?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text('Hapus'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await MasterDataService.deleteData('work-types', widget.item['id']);
-        Navigator.pop(context, true);
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Tipe pekerjaan berhasil dihapus'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 }

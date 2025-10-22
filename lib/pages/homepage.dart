@@ -6,6 +6,7 @@ import '../pages/qr_scanner_page.dart';
 import '../model/work_permit_service.dart';
 import '../model/work_permit_letter.dart';
 import '../widgets/statistic_chart.dart';
+import 'package:flutter/services.dart';
 
 class HomePage extends StatefulWidget {
   HomePage({super.key});
@@ -96,7 +97,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        scrolledUnderElevation: 0, // TAMBAHKAN INI
+        surfaceTintColor: Colors.white, // TAMBAHKAN INI
         automaticallyImplyLeading: false,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.white,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+          systemNavigationBarColor: Colors.white,
+          systemNavigationBarIconBrightness: Brightness.dark,
+        ),
         title: Row(
           children: [
             CircleAvatar(
@@ -162,6 +172,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ),
         ),
         child: SingleChildScrollView(
+          physics: ClampingScrollPhysics(), // TAMBAHKAN INI UNTUK SMOOTH SCROLL
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -249,6 +260,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   ],
                 ),
               ),
+
+              // TAMBAHKAN EXTRA SPACE BIAR BISA SCROLL LEBIH JAUH
+              SizedBox(height: 50),
             ],
           ),
         ),

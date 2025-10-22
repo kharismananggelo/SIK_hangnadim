@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:sik_hangnadim_mobile/pages/SIK/sik_form.dart';
 import '../widgets/appbar.dart';
-import '../pages/vendors_page.dart';
 import '../pages/masterData/index.dart';
+import '../pages/vendor/vendor_index.dart';
 import '../pages/Approver/index.dart'; // Sesuaikan path dengan struktur folder Anda
+import '../pages/SIK/SIK_index.dart'; // Sesuaikan path dengan struktur folder Anda
 
 
 class CategoriModel {
@@ -117,7 +119,6 @@ class CategoriModel {
     );
   }
 
-  // 2. Approver
   // 2. Approver - Navigate to ApproverIndexPage
 static void _navigateToApprover(BuildContext context) {
   Navigator.of(context).push(
@@ -160,29 +161,8 @@ static void _navigateToApprover(BuildContext context) {
   // 4. SIK - METHOD YANG DIBUTUHKAN
   static void _navigateToSIK(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          appBar: CustomAppBar(
-            title: 'SIK',
-            showBackButton: true,
-            onBackPressed: () => Navigator.of(context).pop(),
-          ),
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.description, size: 64, color: Colors.purple),
-                SizedBox(height: 16),
-                Text(
-                  'Halaman SIK',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-                Text('Sistem Informasi Korespondensi'),
-              ],
-            ),
-          ),
-        ),
+       MaterialPageRoute(
+        builder: (context) => SIKPage(), // Arahkan ke halaman index approver yang sudah ada
       ),
     );
   }
@@ -191,28 +171,7 @@ static void _navigateToApprover(BuildContext context) {
   static void _navigateToVendor(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => Scaffold(
-          appBar: CustomAppBar(
-            title: 'Vendor',
-            showBackButton: true,
-            onBackPressed: () => Navigator.of(context).pop(),
-          ),
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.business, size: 64, color: Colors.red),
-                SizedBox(height: 16),
-                Text(
-                  'Halaman Vendor',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-                Text('Manajemen vendor dan supplier'),
-              ],
-            ),
-          ),
-        ),
+        builder: (context) => VendorPage(), // Arahkan ke halaman index approver yang sudah ada
       ),
     );
   }

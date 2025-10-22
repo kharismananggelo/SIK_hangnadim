@@ -1,38 +1,48 @@
 import 'package:flutter/material.dart';
-import '../../../services/master_data_service.dart';
-import '../../../widgets/sweet_alert_dialog.dart';
+import '../../../../services/master_data_service.dart';
+import '../../../../widgets/sweet_alert_dialog.dart';
 
-class DasarSuratDetailPage extends StatefulWidget {
+class VendorDetailPage extends StatefulWidget {
   final dynamic item;
 
-  const DasarSuratDetailPage({Key? key, required this.item}) : super(key: key);
+  const VendorDetailPage({Key? key, required this.item}) : super(key: key);
 
   @override
-  _DasarSuratDetailPageState createState() => _DasarSuratDetailPageState();
+  _VendorDetailPageState createState() => _VendorDetailPageState();
 }
 
-class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
+class _VendorDetailPageState extends State<VendorDetailPage> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _referenceController;
-  late TextEditingController _positionController;
+  late TextEditingController _legalNameController;
+  late TextEditingController _addressController;
   bool _isEditing = false;
   bool _isLoading = false;
+  bool _isMounted = false;
+
+  // Focus nodes untuk keyboard handling
+  final FocusNode _legalNameFocusNode = FocusNode();
+  final FocusNode _addressFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _referenceController = TextEditingController(text: widget.item['reference']?.toString() ?? '');
-    _positionController = TextEditingController(text: widget.item['position']?.toString() ?? '');
+    _isMounted = true;
+    _legalNameController = TextEditingController(text: widget.item['legal_name']?.toString() ?? '');
+    _addressController = TextEditingController(text: widget.item['address']?.toString() ?? '');
   }
 
   @override
   void dispose() {
-    _referenceController.dispose();
-    _positionController.dispose();
+    _isMounted = false;
+    _legalNameController.dispose();
+    _addressController.dispose();
+    _legalNameFocusNode.dispose();
+    _addressFocusNode.dispose();
     super.dispose();
   }
 
   void _toggleEdit() {
+    if (!_isMounted) return;
     setState(() {
       _isEditing = !_isEditing;
     });
@@ -40,6 +50,8 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
 
   Future<void> _saveForm() async {
     if (_formKey.currentState!.validate()) {
+      if (!_isMounted) return;
+      
       FocusScope.of(context).unfocus();
       
       setState(() {
@@ -47,39 +59,28 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
       });
 
       try {
-        // ✅ PERBAIKAN: Convert position ke int seperti di FormPage
         final data = {
-          'reference': _referenceController.text.trim(),
-          'position': int.tryParse(_positionController.text.trim()) ?? 0, // ✅ Convert to int
+          'legal_name': _legalNameController.text,
+          'address': _addressController.text.isEmpty ? null : _addressController.text,
         };
 
-        print('🔄 Data yang dikirim ke API:');
-        print('Reference: ${data['reference']}');
-        print('Position: ${data['position']}');
-        print('ID: ${widget.item['id']}');
-
-        // ✅ PERBAIKAN: Gunakan endpoint 'letter-fundamentals' bukan 'work-permit-letters'
-        await MasterDataService.updateData('letter-fundamentals', widget.item['id'], data);
+        await MasterDataService.updateData('vendors', widget.item['id'], data);
         
-        _showSimpleSuccessAlert('Data dasar surat berhasil diupdate');
+        if (!_isMounted) return;
+        
+        _showSimpleSuccessAlert('Data vendor berhasil diupdate');
         
       } catch (e) {
+        if (!_isMounted) return;
+        
         setState(() {
           _isLoading = false;
         });
         
-        String errorMessage = 'Terjadi kesalahan: $e';
-        
-        if (e.toString().contains('422')) {
-          errorMessage = 'Validasi gagal. Pastikan data sudah diisi dengan benar.\n\nError: $e';
-        } else if (e.toString().contains('500')) {
-          errorMessage = 'Server error. Silakan coba lagi.\n\nError: $e';
-        }
-        
         SweetAlert.showError(
           context: context,
           title: 'Gagal Update',
-          message: errorMessage,
+          message: 'Terjadi kesalahan: $e',
         );
       }
     }
@@ -91,8 +92,8 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => _buildCleanConfirmationDialog(
-        title: 'Hapus Data',
-        message: 'Apakah Anda yakin ingin menghapus dasar surat "${widget.item['reference']}"?',
+        title: 'Hapus Vendor',
+        message: 'Apakah Anda yakin ingin menghapus vendor "${widget.item['legal_name']}"?',
         confirmText: 'Hapus',
         isDelete: true,
       ),
@@ -105,9 +106,8 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
     });
 
     try {
-      // ✅ PERBAIKAN: Gunakan endpoint 'letter-fundamentals' untuk delete
-      await MasterDataService.deleteData('letter-fundamentals', widget.item['id']);
-      _showSimpleSuccessAlert('Dasar surat berhasil dihapus');
+      await MasterDataService.deleteData('vendors', widget.item['id']);
+      _showSimpleSuccessAlert('Vendor berhasil dihapus');
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -120,7 +120,6 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
     }
   }
 
-  // Custom Confirmation Dialog
   Widget _buildCleanConfirmationDialog({
     required String title,
     required String message,
@@ -233,7 +232,6 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
     );
   }
 
-  // Success Alert
   void _showSimpleSuccessAlert(String message) async {
     showDialog(
       context: context,
@@ -325,7 +323,7 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          'Detail Dasar Surat',
+          'Detail Vendor',
           style: TextStyle(
             color: Colors.blue[900],
             fontWeight: FontWeight.bold,
@@ -366,23 +364,23 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
           ],
         ],
       ),
-      body: SafeArea(
-        child: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFFF8FDFF),     
-                Color(0xFFF5FBFF),     
-                Color(0xFFF2F9FF),     
-                Colors.white,
-              ],
-              stops: [0.0, 0.3, 0.6, 1.0],
-            ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFF8FDFF),     
+              Color(0xFFF5FBFF),     
+              Color(0xFFF2F9FF),     
+              Colors.white,
+            ],
+            stops: [0.0, 0.3, 0.6, 1.0],
           ),
+        ),
+        child: SafeArea(
           child: GestureDetector(
             onTap: () {
               FocusScope.of(context).unfocus();
@@ -406,17 +404,15 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                _buildInfoCard(
-                  'Referensi Dasar Surat', 
-                  widget.item['reference']?.toString() ?? 'Tidak tersedia',
-                  maxLines: 6,
-                ),
+                _buildInfoCard('Nama Legal', widget.item['legal_name']?.toString() ?? 'Tidak tersedia'),
                 SizedBox(height: 12),
-                _buildInfoCard(
-                  'Posisi', 
-                  widget.item['position']?.toString() ?? 'Tidak tersedia',
-                  maxLines: 4,
-                ),
+                _buildInfoCard('Nama Kontak', widget.item['user']?['name']?.toString() ?? 'Tidak tersedia'),
+                SizedBox(height: 12),
+                _buildInfoCard('Email', widget.item['user']?['email']?.toString() ?? 'Tidak tersedia'),
+                SizedBox(height: 12),
+                _buildInfoCard('Alamat', widget.item['address']?.toString() ?? 'Tidak tersedia', maxLines: 4),
+                SizedBox(height: 12),
+                _buildInfoCard('Tipe User', widget.item['user']?['user_type']?.toString() ?? 'Tidak tersedia'),
                 SizedBox(height: 12),
                 _buildInfoCard('Dibuat', _formatDate(widget.item['created_at'])),
                 SizedBox(height: 12),
@@ -440,33 +436,31 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
               key: _formKey,
               child: Column(
                 children: [
-                  _buildTextAreaField(
-                    label: 'Referensi Dasar Surat *',
-                    controller: _referenceController,
+                  _buildFormField(
+                    label: 'Nama Legal *',
+                    controller: _legalNameController,
+                    focusNode: _legalNameFocusNode,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Referensi dasar surat wajib diisi';
-                      }
-                      if (value.trim().isEmpty) {
-                        return 'Referensi dasar surat tidak boleh hanya spasi';
+                        return 'Nama legal harus diisi';
                       }
                       return null;
                     },
                   ),
                   SizedBox(height: 16),
                   _buildFormField(
-                    label: 'Posisi *',
-                    controller: _positionController,
+                    label: 'Alamat',
+                    controller: _addressController,
+                    focusNode: _addressFocusNode,
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Posisi wajib diisi';
-                      }
-                      if (int.tryParse(value.trim()) == null) {
-                        return 'Posisi harus berupa angka';
-                      }
-                      return null;
+                      return null; // Alamat optional
                     },
+                    maxLines: 3,
                   ),
+                  SizedBox(height: 12),
+                  _buildInfoCard('Nama Kontak', widget.item['user']?['name']?.toString() ?? 'Tidak tersedia'),
+                  SizedBox(height: 12),
+                  _buildInfoCard('Email', widget.item['user']?['email']?.toString() ?? 'Tidak tersedia'),
                   SizedBox(height: 20),
                 ],
               ),
@@ -523,7 +517,9 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
   Widget _buildFormField({
     required String label,
     required TextEditingController controller,
+    required FocusNode focusNode,
     required String? Function(String?) validator,
+    int maxLines = 1,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -559,67 +555,12 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
             ),
             child: TextFormField(
               controller: controller,
-              keyboardType: TextInputType.number, // ✅ Tambah keyboard number
+              focusNode: focusNode,
+              maxLines: maxLines,
               decoration: InputDecoration(
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 isDense: true,
-                hintText: 'Masukkan $label (angka)',
-              ),
-              validator: validator,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextAreaField({
-    required String label,
-    required TextEditingController controller,
-    required String? Function(String?) validator,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(left: 16, top: 16),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[700],
-              ),
-            ),
-          ),
-          Container(
-            margin: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.withOpacity(0.3)),
-            ),
-            child: TextFormField(
-              controller: controller,
-              maxLines: 5,
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                isDense: true,
-                alignLabelWithHint: true,
-                hintText: 'Masukkan $label',
               ),
               validator: validator,
             ),

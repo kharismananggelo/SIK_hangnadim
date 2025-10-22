@@ -20,6 +20,10 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
   bool _isLoading = false;
   bool _isMounted = false;
 
+  // 🔥 VARIABEL UNTUK TRACK VALIDASI REAL-TIME
+  bool _nameHasError = false;
+  bool _emailHasError = false;
+
   // Focus node untuk handling keyboard
   final FocusNode _nameFocusNode = FocusNode();
   final FocusNode _emailFocusNode = FocusNode();
@@ -31,6 +35,10 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
     _nameController = TextEditingController(text: widget.item['name']?.toString() ?? '');
     _emailController = TextEditingController(text: widget.item['email']?.toString() ?? '');
     _sendEmail = widget.item['send_email'] == 1 || widget.item['send_email'] == true;
+
+    // 🔥 LISTENER UNTUK REAL-TIME VALIDATION
+    _nameController.addListener(_validateNameRealTime);
+    _emailController.addListener(_validateEmailRealTime);
   }
 
   @override
@@ -43,8 +51,72 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
     super.dispose();
   }
 
+  // 🔥 VALIDASI REAL-TIME UNTUK NAMA
+  void _validateNameRealTime() {
+    if (_nameController.text.isEmpty) return;
+    
+    final error = _validateName(_nameController.text);
+    if (_isMounted) {
+      setState(() {
+        _nameHasError = error != null;
+      });
+    }
+  }
+
+  // 🔥 VALIDASI REAL-TIME UNTUK EMAIL
+  void _validateEmailRealTime() {
+    if (_emailController.text.isEmpty) return;
+    
+    final error = _validateEmail(_emailController.text);
+    if (_isMounted) {
+      setState(() {
+        _emailHasError = error != null;
+      });
+    }
+  }
+
+  // 🔥 VALIDATOR FUNCTIONS
+  String? _validateName(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Nama tembusan wajib diisi';
+    }
+    if (value.length < 3) {
+      return 'Nama minimal 3 karakter';
+    }
+    if (value.length > 100) {
+      return 'Nama maksimal 100 karakter';
+    }
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Email wajib diisi';
+    }
+    
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value)) {
+      return 'Format email tidak valid';
+    }
+    
+    if (value.length > 150) {
+      return 'Email maksimal 150 karakter';
+    }
+    
+    return null;
+  }
+
   void _toggleEdit() {
     if (!_isMounted) return;
+    
+    // 🔥 RESET ERROR STATE SAAT BATAL EDIT
+    if (_isEditing) {
+      setState(() {
+        _nameHasError = false;
+        _emailHasError = false;
+      });
+    }
+    
     setState(() {
       _isEditing = !_isEditing;
     });
@@ -63,8 +135,8 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
 
       try {
         final data = {
-          'name': _nameController.text,
-          'email': _emailController.text,
+          'name': _nameController.text.trim(),
+          'email': _emailController.text.trim(),
           'send_email': _sendEmail,
         };
 
@@ -82,13 +154,56 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
           _isLoading = false;
         });
         
-        SweetAlert.showError(
-          context: context,
-          title: 'Gagal Update',
-          message: 'Terjadi kesalahan: $e',
-        );
+        // 🔥 TANGANI ERROR DENGAN PESAN YANG USER-FRIENDLY
+        _handleApiError(e);
       }
+    } else {
+      // 🔥 TAMPILKAN ALERT VALIDASI ERROR
+      _showValidationErrorAlert();
     }
+  }
+
+  // 🔥 METHOD UNTUK MENANGANI ERROR DARI API
+  void _handleApiError(dynamic error) {
+    String errorMessage = 'Terjadi kesalahan saat menyimpan data';
+    String errorTitle = 'Gagal Update';
+
+    // Cek jika error adalah HTTP 422 (Validation Error)
+    if (error.toString().contains('422')) {
+      errorTitle = 'Data Tidak Valid';
+      
+      // 🔥 DETEKSI JENIS ERROR BERDASARKAN INPUT USER
+      final email = _emailController.text.trim();
+      
+      if (email.contains('gmail.co') && !email.contains('gmail.com')) {
+        errorMessage = 'Format email tidak valid. Pastikan menggunakan domain yang benar (contoh: gmail.com)';
+      } else if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+        errorMessage = 'Format email tidak valid. Contoh email yang benar: nama@domain.com';
+      } else if (email.isEmpty) {
+        errorMessage = 'Email wajib diisi';
+      } else if (_nameController.text.trim().isEmpty) {
+        errorMessage = 'Nama tembusan wajib diisi';
+      } else if (_nameController.text.trim().length < 3) {
+        errorMessage = 'Nama tembusan minimal 3 karakter';
+      } else {
+        errorMessage = 'Data yang dimasukkan tidak valid. Periksa kembali nama dan email';
+      }
+    } 
+    // Handle error lainnya
+    else if (error.toString().contains('500')) {
+      errorMessage = 'Server sedang mengalami masalah. Silakan coba lagi nanti';
+    } else if (error.toString().contains('404')) {
+      errorMessage = 'Data tidak ditemukan di server';
+    } else if (error.toString().contains('409')) {
+      errorMessage = 'Data sudah ada dalam sistem. Email atau nama mungkin sudah digunakan';
+    } else if (error.toString().contains('timeout') || error.toString().contains('SocketException')) {
+      errorMessage = 'Koneksi internet terputus. Periksa koneksi Anda dan coba lagi';
+    } else {
+      errorMessage = 'Terjadi kesalahan: $error';
+    }
+
+    // 🔥 TAMPILKAN ALERT ERROR YANG LEBIH INFORMATIF
+    _showDetailedErrorAlert(errorTitle, errorMessage);
   }
 
   Future<void> _deleteData() async {
@@ -121,22 +236,171 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
         setState(() {
           _isLoading = false;
         });
-        SweetAlert.showError(
-          context: context,
-          title: 'Gagal',
-          message: 'Gagal menghapus data "${widget.item['name']}"',
+        _showDetailedErrorAlert(
+          'Gagal', 
+          'Gagal menghapus data "${widget.item['name']}"'
         );
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
-      SweetAlert.showError(
-        context: context,
-        title: 'Error',
-        message: 'Terjadi kesalahan: $e',
-      );
+      _handleApiError(e);
     }
+  }
+
+  // 🔥 ALERT UNTUK VALIDASI ERROR
+  void _showValidationErrorAlert() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          padding: EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 15,
+                offset: Offset(0, 6),
+                spreadRadius: 2,
+              )
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.warning_amber,
+                  size: 30,
+                  color: Colors.orange,
+                ),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Periksa Kembali Data',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[900],
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Terdapat data yang tidak valid. Harap periksa form yang ditandai dengan warna merah.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  height: 1.4,
+                ),
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text('Mengerti'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🔥 ALERT ERROR DETAILED DENGAN INFORMASI LEBIH BAIK
+  void _showDetailedErrorAlert(String title, String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          padding: EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 15,
+                offset: Offset(0, 6),
+                spreadRadius: 2,
+              )
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.error_outline,
+                  size: 30,
+                  color: Colors.red,
+                ),
+              ),
+              SizedBox(height: 16),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[900],
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  height: 1.4,
+                ),
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text('Mengerti'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildCleanConfirmationDialog({
@@ -385,7 +649,6 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
         child: SafeArea(
           child: GestureDetector(
             onTap: () {
-              // Sembunyikan keyboard ketika tap di area kosong
               FocusScope.of(context).unfocus();
             },
             child: Padding(
@@ -421,7 +684,6 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
             ),
           ),
         ),
-        // Tombol tetap di bawah
         _buildActionButtons(),
       ],
     );
@@ -437,34 +699,23 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
               child: Column(
                 children: [
                   _buildFormField(
-                    label: 'Nama',
+                    label: 'Nama Tembusan',
                     controller: _nameController,
                     focusNode: _nameFocusNode,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Nama harus diisi';
-                      }
-                      return null;
-                    },
+                    hasError: _nameHasError,
+                    validator: _validateName,
                   ),
                   SizedBox(height: 16),
                   _buildFormField(
                     label: 'Email',
                     controller: _emailController,
                     focusNode: _emailFocusNode,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Email harus diisi';
-                      }
-                      if (!value.contains('@')) {
-                        return 'Email tidak valid';
-                      }
-                      return null;
-                    },
+                    hasError: _emailHasError,
+                    validator: _validateEmail,
                   ),
                   SizedBox(height: 16),
                   _buildSwitchField(
-                    label: 'Kirim Email',
+                    label: 'Kirim Email Otomatis',
                     value: _sendEmail,
                     onChanged: (value) {
                       if (_isMounted) {
@@ -480,12 +731,110 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
             ),
           ),
         ),
-        // Tombol tetap di bawah
         _buildEditActionButtons(),
       ],
     );
   }
 
+  // 🔥 BUILD FORM FIELD DENGAN VALIDASI YANG DIPERBAIKI
+  Widget _buildFormField({
+    required String label,
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required bool hasError,
+    required String? Function(String?)? validator,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: hasError ? Colors.red.withOpacity(0.1) : Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+        border: hasError ? Border.all(color: Colors.red, width: 1.5) : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(left: 16, top: 16),
+            child: Text(
+              label + ' *',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: hasError ? Colors.red : Colors.grey[700],
+              ),
+            ),
+          ),
+          Container(
+            margin: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: hasError ? Colors.red.withOpacity(0.02) : Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: hasError ? Colors.red : Colors.blue.withOpacity(0.3),
+                width: hasError ? 1.5 : 1,
+              ),
+            ),
+            child: TextFormField(
+              controller: controller,
+              focusNode: focusNode,
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                isDense: true,
+                hintText: 'Masukkan $label',
+                hintStyle: TextStyle(
+                  color: hasError ? Colors.red.withOpacity(0.6) : Colors.grey[500],
+                ),
+                errorStyle: TextStyle(
+                  color: Colors.red,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              style: TextStyle(
+                color: hasError ? Colors.red : Colors.grey[800],
+                fontSize: 14,
+              ),
+              validator: validator,
+              maxLines: 1,
+              onChanged: (value) {
+                if (value.isNotEmpty) {
+                  final error = validator!(value);
+                  if (_isMounted) {
+                    setState(() {
+                      if (controller == _nameController) {
+                        _nameHasError = error != null;
+                      } else if (controller == _emailController) {
+                        _emailHasError = error != null;
+                      }
+                    });
+                  }
+                } else {
+                  if (_isMounted) {
+                    setState(() {
+                      if (controller == _nameController) {
+                        _nameHasError = false;
+                      } else if (controller == _emailController) {
+                        _emailHasError = false;
+                      }
+                    });
+                  }
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔥 WIDGET-WIDGET LAINNYA TETAP SAMA
   Widget _buildInfoCard(String label, String value) {
     return Container(
       width: double.infinity,
@@ -579,61 +928,6 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
     );
   }
 
-  Widget _buildFormField({
-    required String label,
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required String? Function(String?) validator,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(left: 16, top: 16),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[700],
-              ),
-            ),
-          ),
-          Container(
-            margin: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.withOpacity(0.3)),
-            ),
-            child: TextFormField(
-              controller: controller,
-              focusNode: focusNode,
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                isDense: true,
-              ),
-              validator: validator,
-              maxLines: 1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSwitchField({
     required String label,
     required bool value,
@@ -656,12 +950,25 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[700],
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[700],
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Email akan dikirim secara otomatis ketika surat dibuat',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[500],
+                ),
+              ),
+            ],
           ),
           Switch(
             value: value,
