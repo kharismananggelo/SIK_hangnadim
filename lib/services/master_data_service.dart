@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:typed_data';
 
 class MasterDataService {
   static const String baseUrl = 'https://sik.luckyabdillah.com/api/v1';
@@ -141,6 +142,8 @@ class MasterDataService {
         body: json.encode(data),
       );
 
+      print(response);
+
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -166,6 +169,120 @@ class MasterDataService {
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       throw Exception('Error: $e');
+    }
+  }
+
+  // 🔥 UPLOAD SIGNATURE - NEW METHOD
+  static Future<dynamic> uploadSignature(String endpoint, dynamic id, Uint8List signatureData) async {
+    try {
+      print('🔄 Uploading signature for $endpoint/$id');
+      
+      var request = http.MultipartRequest(
+        'POST', 
+        Uri.parse('$baseUrl/$endpoint/$id/upload-signature')
+      );
+      
+      // Tambahkan file signature
+      request.files.add(http.MultipartFile.fromBytes(
+        'signature', // Sesuaikan dengan nama field yang diharapkan backend
+        signatureData,
+        filename: 'signature_$id.png',
+      ));
+
+      // Tambahkan headers
+      request.headers['Accept'] = 'application/json';
+
+      print('📤 Sending signature upload request...');
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      print('📥 Signature upload response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = json.decode(response.body);
+        print('✅ Signature uploaded successfully');
+        return responseData;
+      } else {
+        print('❌ Signature upload failed: ${response.statusCode}');
+        final errorData = json.decode(response.body);
+        throw Exception('Failed to upload signature: ${response.statusCode} - ${errorData['message'] ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      print('❌ Signature upload error: $e');
+      throw Exception('Error uploading signature: $e');
+    }
+  }
+
+  // 🔥 ALTERNATIVE UPLOAD SIGNATURE (jika endpoint berbeda)
+  static Future<dynamic> uploadSignatureAlternative(String endpoint, dynamic id, Uint8List signatureData) async {
+    try {
+      print('🔄 Uploading signature using alternative method for $endpoint/$id');
+      
+      var request = http.MultipartRequest(
+        'POST', 
+        Uri.parse('$baseUrl/upload-signature') // Endpoint khusus untuk upload signature
+      );
+      
+      // Tambahkan file signature dan ID
+      request.files.add(http.MultipartFile.fromBytes(
+        'signature',
+        signatureData,
+        filename: 'signature_$id.png',
+      ));
+
+      // Tambahkan field ID
+      request.fields['approver_id'] = id.toString();
+
+      // Tambahkan headers
+      request.headers['Accept'] = 'application/json';
+
+      print('📤 Sending alternative signature upload request...');
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      print('📥 Alternative signature upload response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = json.decode(response.body);
+        print('✅ Signature uploaded successfully via alternative method');
+        return responseData;
+      } else {
+        print('❌ Alternative signature upload failed: ${response.statusCode}');
+        final errorData = json.decode(response.body);
+        throw Exception('Failed to upload signature: ${response.statusCode} - ${errorData['message'] ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      print('❌ Alternative signature upload error: $e');
+      throw Exception('Error uploading signature: $e');
+    }
+  }
+
+  // 🔥 DELETE SIGNATURE - NEW METHOD
+  static Future<bool> deleteSignature(String endpoint, dynamic id) async {
+    try {
+      print('🔄 Deleting signature for $endpoint/$id');
+      
+      final response = await http.delete(
+        Uri.parse('$baseUrl/$endpoint/$id/delete-signature'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+
+      print('📥 Delete signature response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        print('✅ Signature deleted successfully');
+        return true;
+      } else {
+        print('❌ Delete signature failed: ${response.statusCode}');
+        final errorData = json.decode(response.body);
+        throw Exception('Failed to delete signature: ${response.statusCode} - ${errorData['message'] ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      print('❌ Delete signature error: $e');
+      throw Exception('Error deleting signature: $e');
     }
   }
 }

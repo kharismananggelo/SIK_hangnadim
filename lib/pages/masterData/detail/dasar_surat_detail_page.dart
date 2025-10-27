@@ -12,77 +12,207 @@ class DasarSuratDetailPage extends StatefulWidget {
 }
 
 class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
-  final _formKey = GlobalKey<FormState>();
   late TextEditingController _referenceController;
   late TextEditingController _positionController;
   bool _isEditing = false;
   bool _isLoading = false;
+  bool _isMounted = false;
+
+  // 🔥 VARIABEL UNTUK TRACK VALIDASI REAL-TIME
+  bool _referenceHasError = false;
+  bool _positionHasError = false;
+  String? _referenceErrorText;
+  String? _positionErrorText;
 
   @override
   void initState() {
     super.initState();
+    _isMounted = true;
     _referenceController = TextEditingController(text: widget.item['reference']?.toString() ?? '');
     _positionController = TextEditingController(text: widget.item['position']?.toString() ?? '');
+
+    // 🔥 LISTENER UNTUK REAL-TIME VALIDATION
+    _referenceController.addListener(_validateReferenceRealTime);
+    _positionController.addListener(_validatePositionRealTime);
   }
 
   @override
   void dispose() {
+    _isMounted = false;
     _referenceController.dispose();
     _positionController.dispose();
     super.dispose();
   }
 
+  // 🔥 VALIDASI REAL-TIME UNTUK REFERENSI
+  void _validateReferenceRealTime() {
+    final error = _validateReference(_referenceController.text);
+    if (_isMounted) {
+      setState(() {
+        _referenceHasError = error != null;
+        _referenceErrorText = error;
+      });
+    }
+  }
+
+  // 🔥 VALIDASI REAL-TIME UNTUK POSISI
+  void _validatePositionRealTime() {
+    final error = _validatePosition(_positionController.text);
+    if (_isMounted) {
+      setState(() {
+        _positionHasError = error != null;
+        _positionErrorText = error;
+      });
+    }
+  }
+
+  // 🔥 VALIDATOR FUNCTIONS
+  String? _validateReference(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Referensi dasar surat wajib diisi';
+    }
+    if (value.trim().isEmpty) {
+      return 'Referensi dasar surat tidak boleh hanya spasi';
+    }
+    if (value.length < 3) {
+      return 'Referensi minimal 3 karakter';
+    }
+    if (value.length > 500) {
+      return 'Referensi maksimal 500 karakter';
+    }
+    return null;
+  }
+
+  String? _validatePosition(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Posisi wajib diisi';
+    }
+    if (int.tryParse(value.trim()) == null) {
+      return 'Posisi harus berupa angka';
+    }
+    final position = int.tryParse(value.trim()) ?? 0;
+    if (position < 1) {
+      return 'Posisi minimal 1';
+    }
+    if (position > 999) {
+      return 'Posisi maksimal 999';
+    }
+    return null;
+  }
+
   void _toggleEdit() {
+    if (!_isMounted) return;
+    
+    // 🔥 RESET ERROR STATE SAAT BATAL EDIT
+    if (_isEditing) {
+      setState(() {
+        _referenceHasError = false;
+        _positionHasError = false;
+        _referenceErrorText = null;
+        _positionErrorText = null;
+      });
+    }
+    
     setState(() {
       _isEditing = !_isEditing;
     });
   }
 
   Future<void> _saveForm() async {
-    if (_formKey.currentState!.validate()) {
-      FocusScope.of(context).unfocus();
+    // Sembunyikan keyboard
+    FocusScope.of(context).unfocus();
+    
+    // 🔥 VALIDASI MANUAL TANPA FORM KEY
+    final referenceError = _validateReference(_referenceController.text);
+    final positionError = _validatePosition(_positionController.text);
+    
+    setState(() {
+      _referenceHasError = referenceError != null;
+      _positionHasError = positionError != null;
+      _referenceErrorText = referenceError;
+      _positionErrorText = positionError;
+    });
+    
+    // 🔥 CEK JIKA ADA ERROR
+    if (referenceError != null || positionError != null) {
+      _showValidationErrorAlert();
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // ✅ PERBAIKAN: Convert position ke int seperti di FormPage
+      final data = {
+        'reference': _referenceController.text.trim(),
+        'position': int.tryParse(_positionController.text.trim()) ?? 0, // ✅ Convert to int
+      };
+
+      print('🔄 Data yang dikirim ke API:');
+      print('Reference: ${data['reference']}');
+      print('Position: ${data['position']}');
+      print('ID: ${widget.item['id']}');
+
+      // ✅ PERBAIKAN: Gunakan endpoint 'letter-fundamentals' bukan 'work-permit-letters'
+      await MasterDataService.updateData('letter-fundamentals', widget.item['id'], data);
+      
+      if (!_isMounted) return;
+      
+      _showSimpleSuccessAlert('Data dasar surat berhasil diupdate');
+      
+    } catch (e) {
+      if (!_isMounted) return;
       
       setState(() {
-        _isLoading = true;
+        _isLoading = false;
       });
-
-      try {
-        // ✅ PERBAIKAN: Convert position ke int seperti di FormPage
-        final data = {
-          'reference': _referenceController.text.trim(),
-          'position': int.tryParse(_positionController.text.trim()) ?? 0, // ✅ Convert to int
-        };
-
-        print('🔄 Data yang dikirim ke API:');
-        print('Reference: ${data['reference']}');
-        print('Position: ${data['position']}');
-        print('ID: ${widget.item['id']}');
-
-        // ✅ PERBAIKAN: Gunakan endpoint 'letter-fundamentals' bukan 'work-permit-letters'
-        await MasterDataService.updateData('letter-fundamentals', widget.item['id'], data);
-        
-        _showSimpleSuccessAlert('Data dasar surat berhasil diupdate');
-        
-      } catch (e) {
-        setState(() {
-          _isLoading = false;
-        });
-        
-        String errorMessage = 'Terjadi kesalahan: $e';
-        
-        if (e.toString().contains('422')) {
-          errorMessage = 'Validasi gagal. Pastikan data sudah diisi dengan benar.\n\nError: $e';
-        } else if (e.toString().contains('500')) {
-          errorMessage = 'Server error. Silakan coba lagi.\n\nError: $e';
-        }
-        
-        SweetAlert.showError(
-          context: context,
-          title: 'Gagal Update',
-          message: errorMessage,
-        );
-      }
+      
+      // 🔥 TANGANI ERROR DENGAN PESAN YANG USER-FRIENDLY
+      _handleApiError(e);
     }
+  }
+
+  // 🔥 METHOD UNTUK MENANGANI ERROR DARI API
+  void _handleApiError(dynamic error) {
+    String errorMessage = 'Terjadi kesalahan saat menyimpan data';
+    String errorTitle = 'Gagal Update';
+
+    // Cek jika error adalah HTTP 422 (Validation Error)
+    if (error.toString().contains('422')) {
+      errorTitle = 'Data Tidak Valid';
+      
+      // 🔥 DETEKSI JENIS ERROR BERDASARKAN INPUT USER
+      if (_referenceController.text.trim().isEmpty) {
+        errorMessage = 'Referensi dasar surat wajib diisi';
+      } else if (_referenceController.text.trim().length < 3) {
+        errorMessage = 'Referensi dasar surat minimal 3 karakter';
+      } else if (_positionController.text.trim().isEmpty) {
+        errorMessage = 'Posisi wajib diisi';
+      } else if (int.tryParse(_positionController.text.trim()) == null) {
+        errorMessage = 'Posisi harus berupa angka';
+      } else if (error.toString().contains('duplicate') || error.toString().contains('already exists')) {
+        errorMessage = 'Data sudah ada dalam sistem. Referensi atau posisi mungkin sudah digunakan';
+      } else {
+        errorMessage = 'Data yang dimasukkan tidak valid. Periksa kembali referensi dan posisi';
+      }
+    } 
+    // Handle error lainnya
+    else if (error.toString().contains('500')) {
+      errorMessage = 'Server sedang mengalami masalah. Silakan coba lagi nanti';
+    } else if (error.toString().contains('404')) {
+      errorMessage = 'Data tidak ditemukan di server';
+    } else if (error.toString().contains('409')) {
+      errorMessage = 'Data sudah ada dalam sistem. Referensi atau posisi mungkin sudah digunakan';
+    } else if (error.toString().contains('timeout') || error.toString().contains('SocketException')) {
+      errorMessage = 'Koneksi internet terputus. Periksa koneksi Anda dan coba lagi';
+    } else {
+      errorMessage = 'Terjadi kesalahan sistem. Silakan coba lagi';
+    }
+
+    // 🔥 TAMPILKAN ALERT ERROR YANG LEBIH INFORMATIF
+    _showDetailedErrorAlert(errorTitle, errorMessage);
   }
 
   Future<void> _deleteData() async {
@@ -112,12 +242,164 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
       setState(() {
         _isLoading = false;
       });
-      SweetAlert.showError(
-        context: context,
-        title: 'Error',
-        message: 'Terjadi kesalahan: $e',
-      );
+      
+      // 🔥 GUNAKAN ERROR HANDLER YANG SAMA UNTUK DELETE
+      _handleApiError(e);
     }
+  }
+
+  // 🔥 ALERT UNTUK VALIDASI ERROR
+  void _showValidationErrorAlert() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          padding: EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 15,
+                offset: Offset(0, 6),
+                spreadRadius: 2,
+              )
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.warning_amber,
+                  size: 30,
+                  color: Colors.orange,
+                ),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Periksa Kembali Data',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[900],
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Terdapat data yang tidak valid. Harap periksa form yang ditandai dengan warna merah.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  height: 1.4,
+                ),
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text('Mengerti'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🔥 ALERT ERROR DETAILED DENGAN INFORMASI LEBIH BAIK
+  void _showDetailedErrorAlert(String title, String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          padding: EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 15,
+                offset: Offset(0, 6),
+                spreadRadius: 2,
+              )
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.error_outline,
+                  size: 30,
+                  color: Colors.red,
+                ),
+              ),
+              SizedBox(height: 16),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[900],
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  height: 1.4,
+                ),
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text('Mengerti'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // Custom Confirmation Dialog
@@ -436,40 +718,24 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
       children: [
         Expanded(
           child: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  _buildTextAreaField(
-                    label: 'Referensi Dasar Surat *',
-                    controller: _referenceController,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Referensi dasar surat wajib diisi';
-                      }
-                      if (value.trim().isEmpty) {
-                        return 'Referensi dasar surat tidak boleh hanya spasi';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 16),
-                  _buildFormField(
-                    label: 'Posisi *',
-                    controller: _positionController,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Posisi wajib diisi';
-                      }
-                      if (int.tryParse(value.trim()) == null) {
-                        return 'Posisi harus berupa angka';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 20),
-                ],
-              ),
+            child: Column(
+              children: [
+                // 🔥 FORM FIELD DENGAN VALIDASI YANG DIPERBAIKI
+                _buildTextAreaField(
+                  controller: _referenceController,
+                  label: 'Referensi Dasar Surat',
+                  hasError: _referenceHasError,
+                  errorText: _referenceErrorText,
+                ),
+                SizedBox(height: 16),
+                _buildFormField(
+                  controller: _positionController,
+                  label: 'Posisi',
+                  hasError: _positionHasError,
+                  errorText: _positionErrorText,
+                ),
+                SizedBox(height: 20),
+              ],
             ),
           ),
         ),
@@ -520,10 +786,12 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
     );
   }
 
+  // ✅ BUILD FORM FIELD DENGAN VALIDASI YANG DIPERBAIKI
   Widget _buildFormField({
-    required String label,
     required TextEditingController controller,
-    required String? Function(String?) validator,
+    required String label,
+    required bool hasError,
+    required String? errorText,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -531,11 +799,12 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: hasError ? Colors.red.withOpacity(0.1) : Colors.black.withOpacity(0.1),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
         ],
+        border: hasError ? Border.all(color: Colors.red, width: 1.5) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -543,30 +812,42 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
           Padding(
             padding: EdgeInsets.only(left: 16, top: 16),
             child: Text(
-              label,
+              label + ' *',
               style: TextStyle(
                 fontWeight: FontWeight.w500,
-                color: Colors.grey[700],
+                color: hasError ? Colors.red : Colors.grey[700],
               ),
             ),
           ),
           Container(
             margin: EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: hasError ? Colors.red.withOpacity(0.02) : Colors.white,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.withOpacity(0.3)),
+              border: Border.all(
+                color: hasError ? Colors.red : Colors.blue.withOpacity(0.3),
+                width: hasError ? 1.5 : 1,
+              ),
             ),
-            child: TextFormField(
+            child: TextField(
               controller: controller,
-              keyboardType: TextInputType.number, // ✅ Tambah keyboard number
+              keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 isDense: true,
                 hintText: 'Masukkan $label (angka)',
+                errorText: errorText,
+                errorStyle: TextStyle(
+                  color: Colors.red,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              validator: validator,
+              style: TextStyle(
+                color: hasError ? Colors.red : Colors.grey[800],
+                fontSize: 14,
+              ),
             ),
           ),
         ],
@@ -574,10 +855,12 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
     );
   }
 
+  // ✅ BUILD TEXT AREA FIELD DENGAN VALIDASI YANG DIPERBAIKI
   Widget _buildTextAreaField({
-    required String label,
     required TextEditingController controller,
-    required String? Function(String?) validator,
+    required String label,
+    required bool hasError,
+    required String? errorText,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -585,11 +868,12 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: hasError ? Colors.red.withOpacity(0.1) : Colors.black.withOpacity(0.1),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
         ],
+        border: hasError ? Border.all(color: Colors.red, width: 1.5) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -597,21 +881,24 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
           Padding(
             padding: EdgeInsets.only(left: 16, top: 16),
             child: Text(
-              label,
+              label + ' *',
               style: TextStyle(
                 fontWeight: FontWeight.w500,
-                color: Colors.grey[700],
+                color: hasError ? Colors.red : Colors.grey[700],
               ),
             ),
           ),
           Container(
             margin: EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: hasError ? Colors.red.withOpacity(0.02) : Colors.white,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.withOpacity(0.3)),
+              border: Border.all(
+                color: hasError ? Colors.red : Colors.blue.withOpacity(0.3),
+                width: hasError ? 1.5 : 1,
+              ),
             ),
-            child: TextFormField(
+            child: TextField(
               controller: controller,
               maxLines: 5,
               decoration: InputDecoration(
@@ -620,8 +907,17 @@ class _DasarSuratDetailPageState extends State<DasarSuratDetailPage> {
                 isDense: true,
                 alignLabelWithHint: true,
                 hintText: 'Masukkan $label',
+                errorText: errorText,
+                errorStyle: TextStyle(
+                  color: Colors.red,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              validator: validator,
+              style: TextStyle(
+                color: hasError ? Colors.red : Colors.grey[800],
+                fontSize: 14,
+              ),
             ),
           ),
         ],

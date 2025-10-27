@@ -22,6 +22,7 @@ class _ApproverIndexPageState extends State<ApproverIndexPage> {
   @override
   void initState() {
     super.initState();
+    print('🚀 ApproverIndexPage initialized');
     _fetchData();
     _searchController.addListener(_onSearchChanged);
   }
@@ -44,6 +45,9 @@ class _ApproverIndexPageState extends State<ApproverIndexPage> {
         _filteredData = _data;
       } else {
         _filteredData = _data.where((item) {
+          // Safe access dengan null checking
+          if (item is! Map) return false;
+          
           final userName = item['user']?['name']?.toString().toLowerCase() ?? '';
           final position = item['position']?.toString().toLowerCase() ?? '';
           final level = item['level']?.toString().toLowerCase() ?? '';
@@ -74,21 +78,60 @@ class _ApproverIndexPageState extends State<ApproverIndexPage> {
 
       final data = await MasterDataService.fetchData('approvers');
       
-      print('✅ Approvers data fetched successfully, length: ${data.length}');
+      print('📊 Raw data type: ${data.runtimeType}');
+      print('📊 Raw data length: ${data.length}');
+      
+      // Debug: print struktur data
+      if (data.isNotEmpty) {
+        print('🔍 First item preview:');
+        if (data[0] is Map) {
+          final firstItem = data[0] as Map;
+          print('   - ID: ${firstItem['id']}');
+          print('   - User: ${firstItem['user']}');
+          print('   - Position: ${firstItem['position']}');
+          print('   - Level: ${firstItem['level']}');
+          print('   - Signature: ${firstItem['signature']}');
+        } else {
+          print('   - Item type: ${data[0].runtimeType}');
+        }
+      }
+
+      // Validasi data
+      List<dynamic> validData = [];
+      for (var item in data) {
+        if (item is Map) {
+          validData.add(item);
+        }
+      }
+
+      print('✅ Valid approvers data: ${validData.length} items');
 
       if (mounted) {
         setState(() {
-          _data = data;
-          _filteredData = data;
+          _data = validData;
+          _filteredData = validData;
           _isLoading = false;
         });
       }
 
     } catch (e) {
       print('❌ Error fetching approvers: $e');
+      print('📋 Error type: ${e.runtimeType}');
+      
+      String errorMessage = 'Gagal memuat data approver. ';
+      if (e.toString().contains('Timeout')) {
+        errorMessage += 'Timeout: Periksa koneksi internet Anda.';
+      } else if (e.toString().contains('FormatException')) {
+        errorMessage += 'Format data tidak valid.';
+      } else if (e.toString().contains('SocketException')) {
+        errorMessage += 'Tidak dapat terhubung ke server.';
+      } else {
+        errorMessage += 'Error: $e';
+      }
+
       if (mounted) {
         setState(() {
-          _errorMessage = 'Gagal memuat data approver. Periksa koneksi internet Anda.';
+          _errorMessage = errorMessage;
           _isLoading = false;
         });
       }
@@ -110,6 +153,11 @@ class _ApproverIndexPageState extends State<ApproverIndexPage> {
   }
 
   void _navigateToDetail(int index, dynamic item) {
+    if (item is! Map) {
+      print('❌ Cannot navigate to detail - invalid item data');
+      return;
+    }
+    
     FocusScope.of(context).unfocus();
     _searchFocusNode.unfocus();
     
@@ -126,18 +174,31 @@ class _ApproverIndexPageState extends State<ApproverIndexPage> {
   }
 
   String _getItemTitle(dynamic item) {
-    return item['user']?['name']?.toString() ?? 'No Name';
+    if (item is Map) {
+      return item['user']?['name']?.toString() ?? 'No Name';
+    }
+    return 'Invalid Data';
   }
 
   String _getItemSubtitle(dynamic item) {
-    final position = item['position']?.toString() ?? '';
-    final level = item['level']?.toString() ?? '';
-    final isDefault = item['is_default_approver'] == 1 ? ' (Default)' : '';
-    return '$position - Level $level$isDefault';
+    if (item is Map) {
+      final position = item['position']?.toString() ?? '';
+      final level = item['level']?.toString() ?? '';
+      final isDefault = item['is_default_approver'] == 1 ? ' (Default)' : '';
+      return '$position - Level $level$isDefault';
+    }
+    return '';
   }
 
   Widget _buildSignatureIndicator(dynamic item) {
-    final hasSignature = item['signature'] != null;
+    if (item is! Map) {
+      return Container(); // Return empty container for invalid data
+    }
+    
+    final hasSignature = item['signature'] != null && 
+                        item['signature'].toString().isNotEmpty &&
+                        item['signature'].toString() != 'null';
+    
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -584,6 +645,40 @@ class _ApproverIndexPageState extends State<ApproverIndexPage> {
   }
 
   Widget _buildEnhancedListItem(int index, dynamic item) {
+    // Safe check untuk item data
+    if (item is! Map) {
+      return Container(
+        margin: EdgeInsets.only(bottom: 12),
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red, size: 20),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Data tidak valid',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final subtitle = _getItemSubtitle(item);
     
     return Container(

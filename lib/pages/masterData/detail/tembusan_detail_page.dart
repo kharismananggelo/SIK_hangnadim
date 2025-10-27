@@ -12,7 +12,6 @@ class TembusanDetailPage extends StatefulWidget {
 }
 
 class _TembusanDetailPageState extends State<TembusanDetailPage> {
-  final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   bool _sendEmail = false;
@@ -23,6 +22,8 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
   // 🔥 VARIABEL UNTUK TRACK VALIDASI REAL-TIME
   bool _nameHasError = false;
   bool _emailHasError = false;
+  String? _nameErrorText;
+  String? _emailErrorText;
 
   // Focus node untuk handling keyboard
   final FocusNode _nameFocusNode = FocusNode();
@@ -53,24 +54,22 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
 
   // 🔥 VALIDASI REAL-TIME UNTUK NAMA
   void _validateNameRealTime() {
-    if (_nameController.text.isEmpty) return;
-    
     final error = _validateName(_nameController.text);
     if (_isMounted) {
       setState(() {
         _nameHasError = error != null;
+        _nameErrorText = error;
       });
     }
   }
 
   // 🔥 VALIDASI REAL-TIME UNTUK EMAIL
   void _validateEmailRealTime() {
-    if (_emailController.text.isEmpty) return;
-    
     final error = _validateEmail(_emailController.text);
     if (_isMounted) {
       setState(() {
         _emailHasError = error != null;
+        _emailErrorText = error;
       });
     }
   }
@@ -114,6 +113,8 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
       setState(() {
         _nameHasError = false;
         _emailHasError = false;
+        _nameErrorText = null;
+        _emailErrorText = null;
       });
     }
     
@@ -123,43 +124,53 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
   }
 
   Future<void> _saveForm() async {
-    if (_formKey.currentState!.validate()) {
+    // Sembunyikan keyboard
+    FocusScope.of(context).unfocus();
+    
+    // 🔥 VALIDASI MANUAL TANPA FORM KEY
+    final nameError = _validateName(_nameController.text);
+    final emailError = _validateEmail(_emailController.text);
+    
+    setState(() {
+      _nameHasError = nameError != null;
+      _emailHasError = emailError != null;
+      _nameErrorText = nameError;
+      _emailErrorText = emailError;
+    });
+    
+    // 🔥 CEK JIKA ADA ERROR
+    if (nameError != null || emailError != null) {
+      _showValidationErrorAlert();
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final data = {
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'send_email': _sendEmail,
+      };
+
+      await MasterDataService.updateData('copies', widget.item['id'], data);
+      
       if (!_isMounted) return;
       
-      // Sembunyikan keyboard
-      FocusScope.of(context).unfocus();
+      // Tampilkan success alert auto close untuk edit
+      _showSimpleSuccessAlert('Data berhasil diupdate');
+      
+    } catch (e) {
+      if (!_isMounted) return;
       
       setState(() {
-        _isLoading = true;
+        _isLoading = false;
       });
-
-      try {
-        final data = {
-          'name': _nameController.text.trim(),
-          'email': _emailController.text.trim(),
-          'send_email': _sendEmail,
-        };
-
-        await MasterDataService.updateData('copies', widget.item['id'], data);
-        
-        if (!_isMounted) return;
-        
-        // Tampilkan success alert auto close untuk edit
-        _showSimpleSuccessAlert('Data berhasil diupdate');
-        
-      } catch (e) {
-        if (!_isMounted) return;
-        
-        setState(() {
-          _isLoading = false;
-        });
-        
-        // 🔥 TANGANI ERROR DENGAN PESAN YANG USER-FRIENDLY
-        _handleApiError(e);
-      }
-    } else {
-      // 🔥 TAMPILKAN ALERT VALIDASI ERROR
-      _showValidationErrorAlert();
+      
+      // 🔥 TANGANI ERROR DENGAN PESAN YANG USER-FRIENDLY
+      _handleApiError(e);
     }
   }
 
@@ -694,40 +705,38 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
       children: [
         Expanded(
           child: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  _buildFormField(
-                    label: 'Nama Tembusan',
-                    controller: _nameController,
-                    focusNode: _nameFocusNode,
-                    hasError: _nameHasError,
-                    validator: _validateName,
-                  ),
-                  SizedBox(height: 16),
-                  _buildFormField(
-                    label: 'Email',
-                    controller: _emailController,
-                    focusNode: _emailFocusNode,
-                    hasError: _emailHasError,
-                    validator: _validateEmail,
-                  ),
-                  SizedBox(height: 16),
-                  _buildSwitchField(
-                    label: 'Kirim Email Otomatis',
-                    value: _sendEmail,
-                    onChanged: (value) {
-                      if (_isMounted) {
-                        setState(() {
-                          _sendEmail = value;
-                        });
-                      }
-                    },
-                  ),
-                  SizedBox(height: 20),
-                ],
-              ),
+            child: Column(
+              children: [
+                // 🔥 FORM FIELD DENGAN VALIDASI YANG DIPERBAIKI
+                _buildFormField(
+                  label: 'Nama Tembusan',
+                  controller: _nameController,
+                  focusNode: _nameFocusNode,
+                  hasError: _nameHasError,
+                  errorText: _nameErrorText,
+                ),
+                SizedBox(height: 16),
+                _buildFormField(
+                  label: 'Email',
+                  controller: _emailController,
+                  focusNode: _emailFocusNode,
+                  hasError: _emailHasError,
+                  errorText: _emailErrorText,
+                ),
+                SizedBox(height: 16),
+                _buildSwitchField(
+                  label: 'Kirim Email Otomatis',
+                  value: _sendEmail,
+                  onChanged: (value) {
+                    if (_isMounted) {
+                      setState(() {
+                        _sendEmail = value;
+                      });
+                    }
+                  },
+                ),
+                SizedBox(height: 20),
+              ],
             ),
           ),
         ),
@@ -736,13 +745,13 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
     );
   }
 
-  // 🔥 BUILD FORM FIELD DENGAN VALIDASI YANG DIPERBAIKI
+  // ✅ BUILD FORM FIELD DENGAN VALIDASI YANG DIPERBAIKI
   Widget _buildFormField({
     required String label,
     required TextEditingController controller,
     required FocusNode focusNode,
     required bool hasError,
-    required String? Function(String?)? validator,
+    required String? errorText,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -780,7 +789,7 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
                 width: hasError ? 1.5 : 1,
               ),
             ),
-            child: TextFormField(
+            child: TextField(
               controller: controller,
               focusNode: focusNode,
               decoration: InputDecoration(
@@ -791,6 +800,7 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
                 hintStyle: TextStyle(
                   color: hasError ? Colors.red.withOpacity(0.6) : Colors.grey[500],
                 ),
+                errorText: errorText,
                 errorStyle: TextStyle(
                   color: Colors.red,
                   fontSize: 12,
@@ -801,32 +811,6 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
                 color: hasError ? Colors.red : Colors.grey[800],
                 fontSize: 14,
               ),
-              validator: validator,
-              maxLines: 1,
-              onChanged: (value) {
-                if (value.isNotEmpty) {
-                  final error = validator!(value);
-                  if (_isMounted) {
-                    setState(() {
-                      if (controller == _nameController) {
-                        _nameHasError = error != null;
-                      } else if (controller == _emailController) {
-                        _emailHasError = error != null;
-                      }
-                    });
-                  }
-                } else {
-                  if (_isMounted) {
-                    setState(() {
-                      if (controller == _nameController) {
-                        _nameHasError = false;
-                      } else if (controller == _emailController) {
-                        _emailHasError = false;
-                      }
-                    });
-                  }
-                }
-              },
             ),
           ),
         ],
@@ -834,7 +818,7 @@ class _TembusanDetailPageState extends State<TembusanDetailPage> {
     );
   }
 
-  // 🔥 WIDGET-WIDGET LAINNYA TETAP SAMA
+  // WIDGET-WIDGET LAINNYA TETAP SAMA
   Widget _buildInfoCard(String label, String value) {
     return Container(
       width: double.infinity,

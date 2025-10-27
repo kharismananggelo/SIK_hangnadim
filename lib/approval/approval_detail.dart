@@ -1,126 +1,68 @@
 import 'package:flutter/material.dart';
-import '../../../services/master_data_service.dart';
-import '../../../widgets/sweet_alert_dialog.dart';
+import '../../services/master_data_service.dart';
+import '../../widgets/sweet_alert_dialog.dart';
+import '../../widgets/smooth_signature_canvas.dart';
 
-class TipePekerjaanDetailPage extends StatefulWidget {
+class ApprovalDetailPage extends StatefulWidget {
   final dynamic item;
 
-  const TipePekerjaanDetailPage({Key? key, required this.item}) : super(key: key);
+  const ApprovalDetailPage({Key? key, required this.item}) : super(key: key);
 
   @override
-  _TipePekerjaanDetailPageState createState() => _TipePekerjaanDetailPageState();
+  _ApprovalDetailPageState createState() => _ApprovalDetailPageState();
 }
 
-class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
-  late TextEditingController _typeController;
-  late TextEditingController _unitNameController;
-  late TextEditingController _provisionBeforeController;
-  late TextEditingController _provisionAfterController;
+class _ApprovalDetailPageState extends State<ApprovalDetailPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _statusController = TextEditingController();
+  final _notesController = TextEditingController();
+  final _signatureKey = GlobalKey<SmoothSignatureCanvasState>();
+
+  List<Offset> _signaturePoints = [];
   bool _isEditing = false;
   bool _isLoading = false;
   bool _isMounted = false;
 
-  // 🔥 VARIABEL UNTUK TRACK VALIDASI REAL-TIME
-  bool _typeHasError = false;
-  bool _unitNameHasError = false;
-  String? _typeErrorText;
-  String? _unitNameErrorText;
+  final FocusNode _statusFocusNode = FocusNode();
+  final FocusNode _notesFocusNode = FocusNode();
 
-  // Focus nodes untuk keyboard handling
-  final FocusNode _typeFocusNode = FocusNode();
-  final FocusNode _unitNameFocusNode = FocusNode();
-  final FocusNode _provisionBeforeFocusNode = FocusNode();
-  final FocusNode _provisionAfterFocusNode = FocusNode();
+  final List<String> _statusOptions = ['waiting', 'approved', 'rejected'];
 
   @override
   void initState() {
     super.initState();
     _isMounted = true;
-    _typeController = TextEditingController(text: widget.item['type']?.toString() ?? '');
-    _unitNameController = TextEditingController(text: widget.item['unit_name']?.toString() ?? '');
-    _provisionBeforeController = TextEditingController(text: widget.item['provision_text_before']?.toString() ?? '');
-    _provisionAfterController = TextEditingController(text: widget.item['provision_text_after']?.toString() ?? '');
-
-    // 🔥 LISTENER UNTUK REAL-TIME VALIDATION
-    _typeController.addListener(_validateTypeRealTime);
-    _unitNameController.addListener(_validateUnitNameRealTime);
+    _statusController.text = widget.item['status']?.toString() ?? 'waiting';
+    _notesController.text = widget.item['notes']?.toString() ?? '';
+    
+    // Load existing signature points if available
+    if (widget.item['signature_points'] != null) {
+      try {
+        final List<dynamic> pointsData = widget.item['signature_points'];
+        _signaturePoints = pointsData.map((point) {
+          return Offset(
+            (point['x'] ?? 0).toDouble(),
+            (point['y'] ?? 0).toDouble(),
+          );
+        }).toList();
+      } catch (e) {
+        print('Error loading signature points: $e');
+      }
+    }
   }
 
   @override
   void dispose() {
     _isMounted = false;
-    _typeController.dispose();
-    _unitNameController.dispose();
-    _provisionBeforeController.dispose();
-    _provisionAfterController.dispose();
-    _typeFocusNode.dispose();
-    _unitNameFocusNode.dispose();
-    _provisionBeforeFocusNode.dispose();
-    _provisionAfterFocusNode.dispose();
+    _statusController.dispose();
+    _notesController.dispose();
+    _statusFocusNode.dispose();
+    _notesFocusNode.dispose();
     super.dispose();
-  }
-
-  // 🔥 VALIDASI REAL-TIME UNTUK TYPE
-  void _validateTypeRealTime() {
-    final error = _validateType(_typeController.text);
-    if (_isMounted) {
-      setState(() {
-        _typeHasError = error != null;
-        _typeErrorText = error;
-      });
-    }
-  }
-
-  // 🔥 VALIDASI REAL-TIME UNTUK UNIT NAME
-  void _validateUnitNameRealTime() {
-    final error = _validateUnitName(_unitNameController.text);
-    if (_isMounted) {
-      setState(() {
-        _unitNameHasError = error != null;
-        _unitNameErrorText = error;
-      });
-    }
-  }
-
-  // 🔥 VALIDATOR FUNCTIONS
-  String? _validateType(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Tipe pekerjaan wajib diisi';
-    }
-    if (value.length < 3) {
-      return 'Tipe pekerjaan minimal 3 karakter';
-    }
-    if (value.length > 100) {
-      return 'Tipe pekerjaan maksimal 100 karakter';
-    }
-    return null;
-  }
-
-  String? _validateUnitName(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Nama unit wajib diisi';
-    }
-    if (value.length < 2) {
-      return 'Nama unit minimal 2 karakter';
-    }
-    if (value.length > 50) {
-      return 'Nama unit maksimal 50 karakter';
-    }
-    return null;
   }
 
   void _toggleEdit() {
     if (!_isMounted) return;
-    
-    // 🔥 RESET ERROR STATE SAAT BATAL EDIT
-    if (_isEditing) {
-      setState(() {
-        _typeHasError = false;
-        _unitNameHasError = false;
-        _typeErrorText = null;
-        _unitNameErrorText = null;
-      });
-    }
     
     setState(() {
       _isEditing = !_isEditing;
@@ -128,23 +70,14 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
   }
 
   Future<void> _saveForm() async {
-    // Sembunyikan keyboard
     FocusScope.of(context).unfocus();
     
-    // 🔥 VALIDASI MANUAL TANPA FORM KEY
-    final typeError = _validateType(_typeController.text);
-    final unitError = _validateUnitName(_unitNameController.text);
-    
-    setState(() {
-      _typeHasError = typeError != null;
-      _unitNameHasError = unitError != null;
-      _typeErrorText = typeError;
-      _unitNameErrorText = unitError;
-    });
-    
-    // 🔥 CEK JIKA ADA ERROR
-    if (typeError != null || unitError != null) {
-      _showValidationErrorAlert();
+    if (_statusController.text.isEmpty) {
+      SweetAlert.showError(
+        context: context,
+        title: 'Data Tidak Valid',
+        message: 'Status harus dipilih',
+      );
       return;
     }
 
@@ -154,18 +87,25 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
 
     try {
       final data = {
-        'type': _typeController.text.trim(),
-        'unit_name': _unitNameController.text.trim(),
-        'provision_text_before': _provisionBeforeController.text.trim(),
-        'provision_text_after': _provisionAfterController.text.trim(),
+        'status': _statusController.text,
+        'notes': _notesController.text.isNotEmpty ? _notesController.text : null,
+        'signature_points': _signaturePoints.map((point) => {
+          'x': point.dx,
+          'y': point.dy,
+        }).toList(),
       };
 
-      await MasterDataService.updateData('work-types', widget.item['id'], data);
+      print('🔄 Data yang dikirim:');
+      print('Status: ${data['status']}');
+      print('Notes: ${data['notes']}');
+      print('Signature Points: ${_signaturePoints.length}');
+      print('ID: ${widget.item['id']}');
+
+      await MasterDataService.updateData('approvals', widget.item['id'], data);
       
       if (!_isMounted) return;
       
-      // Tampilkan success alert auto close
-      _showSimpleSuccessAlert('Data tipe pekerjaan berhasil diupdate');
+      _showSimpleSuccessAlert('Data persetujuan berhasil diupdate');
       
     } catch (e) {
       if (!_isMounted) return;
@@ -174,62 +114,38 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
         _isLoading = false;
       });
       
-      // 🔥 TANGANI ERROR DENGAN PESAN YANG USER-FRIENDLY
       _handleApiError(e);
     }
   }
 
-  // 🔥 METHOD UNTUK MENANGANI ERROR DARI API
   void _handleApiError(dynamic error) {
     String errorMessage = 'Terjadi kesalahan saat menyimpan data';
     String errorTitle = 'Gagal Update';
 
-    // Cek jika error adalah HTTP 422 (Validation Error)
     if (error.toString().contains('422')) {
       errorTitle = 'Data Tidak Valid';
-      
-      // 🔥 DETEKSI JENIS ERROR BERDASARKAN INPUT USER
-      if (_typeController.text.trim().isEmpty) {
-        errorMessage = 'Tipe pekerjaan wajib diisi';
-      } else if (_typeController.text.trim().length < 3) {
-        errorMessage = 'Tipe pekerjaan minimal 3 karakter';
-      } else if (_unitNameController.text.trim().isEmpty) {
-        errorMessage = 'Nama unit wajib diisi';
-      } else if (_unitNameController.text.trim().length < 2) {
-        errorMessage = 'Nama unit minimal 2 karakter';
-      } else if (error.toString().contains('duplicate') || error.toString().contains('already exists')) {
-        errorMessage = 'Data sudah ada dalam sistem. Tipe pekerjaan atau nama unit mungkin sudah digunakan';
-      } else {
-        errorMessage = 'Data yang dimasukkan tidak valid. Periksa kembali tipe pekerjaan dan nama unit';
-      }
-    } 
-    // Handle error lainnya
-    else if (error.toString().contains('500')) {
+      errorMessage = 'Data yang dimasukkan tidak valid. Periksa kembali semua field';
+    } else if (error.toString().contains('500')) {
       errorMessage = 'Server sedang mengalami masalah. Silakan coba lagi nanti';
     } else if (error.toString().contains('404')) {
       errorMessage = 'Data tidak ditemukan di server';
-    } else if (error.toString().contains('409')) {
-      errorMessage = 'Data sudah ada dalam sistem. Tipe pekerjaan atau nama unit mungkin sudah digunakan';
     } else if (error.toString().contains('timeout') || error.toString().contains('SocketException')) {
       errorMessage = 'Koneksi internet terputus. Periksa koneksi Anda dan coba lagi';
     } else {
       errorMessage = 'Terjadi kesalahan sistem. Silakan coba lagi';
     }
 
-    // 🔥 TAMPILKAN ALERT ERROR YANG LEBIH INFORMATIF
     _showDetailedErrorAlert(errorTitle, errorMessage);
   }
 
   Future<void> _deleteData() async {
-    // Sembunyikan keyboard
     FocusScope.of(context).unfocus();
     
-    // Konfirmasi delete dengan custom dialog
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => _buildCleanConfirmationDialog(
         title: 'Hapus Data',
-        message: 'Apakah Anda yakin ingin menghapus tipe pekerjaan "${widget.item['type']}"?',
+        message: 'Apakah Anda yakin ingin menghapus persetujuan ini?',
         confirmText: 'Hapus',
         isDelete: true,
       ),
@@ -242,95 +158,25 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
     });
 
     try {
-      await MasterDataService.deleteData('work-types', widget.item['id']);
-      _showSimpleSuccessAlert('Tipe pekerjaan berhasil dihapus');
+      await MasterDataService.deleteData('approvals', widget.item['id']);
+      _showSimpleSuccessAlert('Persetujuan berhasil dihapus');
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
-      // 🔥 GUNAKAN ERROR HANDLER YANG SAMA UNTUK DELETE
+      
       _handleApiError(e);
     }
   }
 
-  // 🔥 ALERT UNTUK VALIDASI ERROR
-  void _showValidationErrorAlert() {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        child: Container(
-          padding: EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 15,
-                offset: Offset(0, 6),
-                spreadRadius: 2,
-              )
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.warning_amber,
-                  size: 30,
-                  color: Colors.orange,
-                ),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Periksa Kembali Data',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue[900],
-                ),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Terdapat data yang tidak valid. Harap periksa form yang ditandai dengan warna merah.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                  height: 1.4,
-                ),
-              ),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text('Mengerti'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  void _clearSignature() {
+    _signatureKey.currentState?.clearCanvas();
+    setState(() {
+      _signaturePoints.clear();
+    });
   }
 
-  // 🔥 ALERT ERROR DETAILED DENGAN INFORMASI LEBIH BAIK
+  // Alert Methods
   void _showDetailedErrorAlert(String title, String message) {
     showDialog(
       context: context,
@@ -339,7 +185,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         child: Container(
-          padding: EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
@@ -347,7 +193,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
                 blurRadius: 15,
-                offset: Offset(0, 6),
+                offset: const Offset(0, 6),
                 spreadRadius: 2,
               )
             ],
@@ -362,13 +208,13 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
                   color: Colors.red.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.error_outline,
                   size: 30,
                   color: Colors.red,
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
                 title,
                 style: TextStyle(
@@ -377,7 +223,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
                   color: Colors.blue[900],
                 ),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 message,
                 textAlign: TextAlign.center,
@@ -387,18 +233,18 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
                   height: 1.4,
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: Text('Mengerti'),
+                child: const Text('Mengerti'),
               ),
             ],
           ),
@@ -407,7 +253,6 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
     );
   }
 
-  // Custom Confirmation Dialog
   Widget _buildCleanConfirmationDialog({
     required String title,
     required String message,
@@ -421,7 +266,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
       ),
       elevation: 0,
       child: Container(
-        padding: EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -429,7 +274,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
               blurRadius: 15,
-              offset: Offset(0, 6),
+              offset: const Offset(0, 6),
               spreadRadius: 2,
             )
           ],
@@ -450,7 +295,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
                 color: isDelete ? Colors.red : Colors.blue,
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               title,
               style: TextStyle(
@@ -459,7 +304,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
                 color: Colors.blue[900],
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
@@ -469,14 +314,14 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
                 height: 1.4,
               ),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(false),
                     style: OutlinedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -491,13 +336,13 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
                     ),
                   ),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(true),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isDelete ? Colors.red : Colors.blue,
-                      padding: EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -505,7 +350,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
                     ),
                     child: Text(
                       confirmText,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w500,
                       ),
@@ -520,7 +365,6 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
     );
   }
 
-  // Success Alert
   void _showSimpleSuccessAlert(String message) async {
     showDialog(
       context: context,
@@ -529,7 +373,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         child: Container(
-          padding: EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
@@ -537,7 +381,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
                 blurRadius: 15,
-                offset: Offset(0, 6),
+                offset: const Offset(0, 6),
                 spreadRadius: 2,
               )
             ],
@@ -552,13 +396,13 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
                   color: Colors.green.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.check,
                   size: 30,
                   color: Colors.green,
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
                 'Berhasil',
                 style: TextStyle(
@@ -567,7 +411,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
                   color: Colors.blue[900],
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 message,
                 style: TextStyle(
@@ -581,11 +425,98 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
       ),
     );
 
-    await Future.delayed(Duration(seconds: 1));
+    await Future.delayed(const Duration(seconds: 1));
     
     if (mounted) {
       Navigator.of(context).pop();
       Navigator.of(context).pop(true);
+    }
+  }
+
+  String _formatDate(dynamic date) {
+    if (date == null) return 'Tidak tersedia';
+    
+    String dateString = date.toString();
+    
+    if (dateString.contains('T')) {
+      try {
+        DateTime parsedDate = DateTime.parse(dateString);
+        return '${parsedDate.day}/${parsedDate.month}/${parsedDate.year} ${parsedDate.hour}:${parsedDate.minute.toString().padLeft(2, '0')}';
+      } catch (e) {
+        return dateString;
+      }
+    }
+    
+    return dateString;
+  }
+
+  String _getStatusDisplayText(String status) {
+    switch (status) {
+      case 'waiting':
+        return 'Menunggu';
+      case 'approved':
+        return 'Disetujui';
+      case 'rejected':
+        return 'Ditolak';
+      default:
+        return status;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'approved':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      case 'waiting':
+      default:
+        return Colors.orange;
+    }
+  }
+
+  Widget _buildStatusBadge(String status) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: _getStatusColor(status).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _getStatusColor(status),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _getStatusIcon(status),
+            size: 14,
+            color: _getStatusColor(status),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            _getStatusDisplayText(status),
+            style: TextStyle(
+              fontSize: 12,
+              color: _getStatusColor(status),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'approved':
+        return Icons.check_circle;
+      case 'rejected':
+        return Icons.cancel;
+      case 'waiting':
+      default:
+        return Icons.access_time;
     }
   }
 
@@ -595,7 +526,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          'Detail Tipe Pekerjaan',
+          'Detail Persetujuan',
           style: TextStyle(
             color: Colors.blue[900],
             fontWeight: FontWeight.bold,
@@ -607,7 +538,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
         iconTheme: IconThemeData(color: Colors.blue[900]),
         actions: [
           if (_isLoading)
-            Padding(
+            const Padding(
               padding: EdgeInsets.all(8.0),
               child: CircularProgressIndicator(color: Colors.blue),
             )
@@ -618,7 +549,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
               tooltip: 'Edit',
             ),
             IconButton(
-              icon: Icon(Icons.delete, color: Colors.red),
+              icon: const Icon(Icons.delete, color: Colors.red),
               onPressed: _deleteData,
               tooltip: 'Hapus',
             ),
@@ -636,31 +567,31 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
           ],
         ],
       ),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFF8FDFF),     
-              Color(0xFFF5FBFF),     
-              Color(0xFFF2F9FF),     
-              Colors.white,
-            ],
-            stops: [0.0, 0.3, 0.6, 1.0],
+      body: SafeArea(
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFF8FDFF),     
+                Color(0xFFF5FBFF),     
+                Color(0xFFF2F9FF),     
+                Colors.white,
+              ],
+              stops: [0.0, 0.3, 0.6, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
           child: GestureDetector(
             onTap: () {
               FocusScope.of(context).unfocus();
             },
             child: Padding(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: _isLoading 
-                  ? Center(child: CircularProgressIndicator(color: Colors.blue))
+                  ? const Center(child: CircularProgressIndicator(color: Colors.blue))
                   : _isEditing ? _buildEditForm() : _buildViewForm(),
             ),
           ),
@@ -676,26 +607,51 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                _buildInfoCard('Tipe Pekerjaan', widget.item['type']?.toString() ?? 'Tidak tersedia'),
-                SizedBox(height: 12),
-                _buildInfoCard('Nama Unit', widget.item['unit_name']?.toString() ?? 'Tidak tersedia'),
-                SizedBox(height: 12),
-                _buildInfoCard(
-                  'Ketentuan Sebelum Pekerjaan', 
-                  widget.item['provision_text_before']?.toString() ?? 'Tidak tersedia',
-                  maxLines: 6,
-                ),
-                SizedBox(height: 12),
-                _buildInfoCard(
-                  'Ketentuan Sesudah Pekerjaan', 
-                  widget.item['provision_text_after']?.toString() ?? 'Tidak tersedia',
-                  maxLines: 6,
-                ),
-                SizedBox(height: 12),
+                // Approval Information
+                _buildSectionHeader('Informasi Persetujuan'),
+                _buildInfoCard('ID Persetujuan', widget.item['id']?.toString() ?? 'Tidak tersedia'),
+                const SizedBox(height: 12),
+                _buildInfoCard('Status', '', customWidget: _buildStatusBadge(widget.item['status']?.toString() ?? 'waiting')),
+                const SizedBox(height: 12),
+                _buildInfoCard('Catatan', widget.item['notes']?.toString() ?? 'Tidak ada catatan'),
+                
+                // Signature Section
+                _buildSectionHeader('Tanda Tangan Digital'),
+                _buildSignatureCard(),
+                const SizedBox(height: 16),
+                
+                // Approver Information
+                _buildSectionHeader('Informasi Approver'),
+                _buildInfoCard('Nama Approver', widget.item['name']?.toString() ?? 'Tidak tersedia'),
+                const SizedBox(height: 12),
+                _buildInfoCard('Email', widget.item['email']?.toString() ?? 'Tidak tersedia'),
+                const SizedBox(height: 12),
+                _buildInfoCard('Posisi', widget.item['position']?.toString() ?? 'Tidak tersedia'),
+                const SizedBox(height: 12),
+                _buildInfoCard('Level', widget.item['level']?.toString() ?? 'Tidak tersedia'),
+                
+                // Work Permit Information
+                _buildSectionHeader('Informasi Surat Izin Kerja'),
+                if (widget.item['work_permit_letter'] != null) ...[
+                  _buildInfoCard('Nomor Surat', widget.item['work_permit_letter']?['letter_number']?.toString() ?? 'Tidak tersedia'),
+                  const SizedBox(height: 12),
+                  _buildInfoCard('Lokasi Kerja', widget.item['work_permit_letter']?['work_location']?.toString() ?? 'Tidak tersedia'),
+                  const SizedBox(height: 12),
+                  _buildInfoCard('Deskripsi Pekerjaan', widget.item['work_permit_letter']?['description']?.toString() ?? 'Tidak tersedia'),
+                  const SizedBox(height: 12),
+                  _buildInfoCard('Vendor', widget.item['work_permit_letter']?['vendor']?['legal_name']?.toString() ?? 'Tidak tersedia'),
+                  const SizedBox(height: 12),
+                  _buildInfoCard('Tanggal Mulai', _formatDate(widget.item['work_permit_letter']?['started_at'])),
+                  const SizedBox(height: 12),
+                  _buildInfoCard('Tanggal Selesai', _formatDate(widget.item['work_permit_letter']?['ended_at'])),
+                ],
+                
+                // Timestamps
+                _buildSectionHeader('Informasi Waktu'),
                 _buildInfoCard('Dibuat', _formatDate(widget.item['created_at'])),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 _buildInfoCard('Diupdate', _formatDate(widget.item['updated_at'])),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -712,35 +668,22 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                // 🔥 FORM FIELD DENGAN VALIDASI YANG DIPERBAIKI
+                _buildSectionHeader('Edit Persetujuan'),
+                _buildDropdownField(
+                  controller: _statusController,
+                  label: 'Status',
+                  options: _statusOptions,
+                ),
+                const SizedBox(height: 16),
                 _buildFormField(
-                  label: 'Tipe Pekerjaan',
-                  controller: _typeController,
-                  focusNode: _typeFocusNode,
-                  hasError: _typeHasError,
-                  errorText: _typeErrorText,
+                  controller: _notesController,
+                  label: 'Catatan',
+                  maxLines: 3,
                 ),
-                SizedBox(height: 16),
-                _buildFormField(
-                  label: 'Nama Unit',
-                  controller: _unitNameController,
-                  focusNode: _unitNameFocusNode,
-                  hasError: _unitNameHasError,
-                  errorText: _unitNameErrorText,
-                ),
-                SizedBox(height: 16),
-                _buildTextAreaField(
-                  label: 'Ketentuan Sebelum Pekerjaan',
-                  controller: _provisionBeforeController,
-                  focusNode: _provisionBeforeFocusNode,
-                ),
-                SizedBox(height: 16),
-                _buildTextAreaField(
-                  label: 'Ketentuan Sesudah Pekerjaan',
-                  controller: _provisionAfterController,
-                  focusNode: _provisionAfterFocusNode,
-                ),
-                SizedBox(height: 20),
+                const SizedBox(height: 16),
+                _buildSectionHeader('Tanda Tangan Digital'),
+                _buildSignatureCard(),
+                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -750,10 +693,10 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
     );
   }
 
-  Widget _buildInfoCard(String label, String value, {int maxLines = 2}) {
+  Widget _buildSignatureCard() {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -761,7 +704,94 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
             blurRadius: 8,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Tanda Tangan',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              if (_signaturePoints.isNotEmpty)
+                Text(
+                  '${_signaturePoints.length} points',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.green[600],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SmoothSignatureCanvas(
+            key: _signatureKey,
+            onPointsUpdate: (points) {
+              setState(() {
+                _signaturePoints = points;
+              });
+              print('Signature points updated: ${points.length}');
+            },
+            points: _signaturePoints,
+          ),
+          const SizedBox(height: 12),
+          if (_isEditing)
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _clearSignature,
+                    icon: const Icon(Icons.clear, size: 16),
+                    label: const Text('Hapus Tanda Tangan'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16, top: 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.blue[900],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(String label, String value, {Widget? customWidget}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -776,99 +806,29 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
               fontWeight: FontWeight.w500,
             ),
           ),
-          SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.blue[900],
-              fontWeight: FontWeight.w500,
-            ),
-            maxLines: maxLines,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ✅ BUILD FORM FIELD DENGAN VALIDASI YANG DIPERBAIKI
-  Widget _buildFormField({
-    required String label,
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required bool hasError,
-    required String? errorText,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: hasError ? Colors.red.withOpacity(0.1) : Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-        border: hasError ? Border.all(color: Colors.red, width: 1.5) : null,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(left: 16, top: 16),
-            child: Text(
-              label + ' *',
+          const SizedBox(height: 8),
+          if (customWidget != null)
+            customWidget
+          else
+            Text(
+              value,
               style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: hasError ? Colors.red : Colors.grey[700],
-              ),
-            ),
-          ),
-          Container(
-            margin: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: hasError ? Colors.red.withOpacity(0.02) : Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: hasError ? Colors.red : Colors.blue.withOpacity(0.3),
-                width: hasError ? 1.5 : 1,
-              ),
-            ),
-            child: TextField(
-              controller: controller,
-              focusNode: focusNode,
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                isDense: true,
-                hintText: 'Masukkan $label',
-                hintStyle: TextStyle(
-                  color: hasError ? Colors.red.withOpacity(0.6) : Colors.grey[500],
-                ),
-                errorText: errorText,
-                errorStyle: TextStyle(
-                  color: Colors.red,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              style: TextStyle(
-                color: hasError ? Colors.red : Colors.grey[800],
                 fontSize: 14,
+                color: Colors.blue[900],
+                fontWeight: FontWeight.w500,
               ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildTextAreaField({
-    required String label,
+  Widget _buildFormField({
     required TextEditingController controller,
-    required FocusNode focusNode,
+    required String label,
+    int maxLines = 1,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -878,7 +838,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
             blurRadius: 8,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -886,7 +846,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: EdgeInsets.only(left: 16, top: 16),
+            padding: const EdgeInsets.only(left: 16, top: 16),
             child: Text(
               label,
               style: TextStyle(
@@ -896,7 +856,7 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
             ),
           ),
           Container(
-            margin: EdgeInsets.all(16),
+            margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),
@@ -904,18 +864,82 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
             ),
             child: TextField(
               controller: controller,
-              focusNode: focusNode,
-              maxLines: 5,
+              maxLines: maxLines,
               decoration: InputDecoration(
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 isDense: true,
-                alignLabelWithHint: true,
                 hintText: 'Masukkan $label',
-                hintStyle: TextStyle(
-                  color: Colors.grey[500],
-                ),
               ),
+              style: TextStyle(
+                color: Colors.grey[800],
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDropdownField({
+    required TextEditingController controller,
+    required String label,
+    required List<String> options,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 16, top: 16),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.withOpacity(0.3)),
+            ),
+            child: DropdownButtonFormField<String>(
+              value: controller.text.isNotEmpty ? controller.text : null,
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                isDense: true,
+              ),
+              items: options.map((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(
+                    _getStatusDisplayText(value),
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                );
+              }).toList(),
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  controller.text = newValue;
+                }
+              },
             ),
           ),
         ],
@@ -932,39 +956,39 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
             blurRadius: 8,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: _toggleEdit,
-                icon: Icon(Icons.edit, size: 20),
-                label: Text('EDIT'),
+                icon: const Icon(Icons.edit, size: 20),
+                label: const Text('EDIT'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: _deleteData,
-                icon: Icon(Icons.delete, size: 20),
-                label: Text('HAPUS'),
+                icon: const Icon(Icons.delete, size: 20),
+                label: const Text('HAPUS'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -986,12 +1010,12 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
             blurRadius: 8,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Expanded(
@@ -1000,20 +1024,20 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: Text('SIMPAN'),
+                child: const Text('SIMPAN'),
               ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: OutlinedButton(
                 onPressed: _toggleEdit,
                 style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -1031,23 +1055,5 @@ class _TipePekerjaanDetailPageState extends State<TipePekerjaanDetailPage> {
         ),
       ),
     );
-  }
-
-  String _formatDate(dynamic date) {
-    if (date == null) return 'Tidak tersedia';
-    
-    String dateString = date.toString();
-    
-    // Handle format dari API: "2025-07-05T21:18:48.000000Z"
-    if (dateString.contains('T')) {
-      try {
-        DateTime parsedDate = DateTime.parse(dateString);
-        return '${parsedDate.day}/${parsedDate.month}/${parsedDate.year} ${parsedDate.hour}:${parsedDate.minute.toString().padLeft(2, '0')}';
-      } catch (e) {
-        return dateString;
-      }
-    }
-    
-    return dateString;
   }
 }

@@ -12,7 +12,6 @@ class TembusanFormPage extends StatefulWidget {
 }
 
 class _TembusanFormPageState extends State<TembusanFormPage> {
-  final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   bool _sendEmail = false;
@@ -22,6 +21,8 @@ class _TembusanFormPageState extends State<TembusanFormPage> {
   // 🔥 VARIABEL UNTUK TRACK VALIDASI REAL-TIME
   bool _nameHasError = false;
   bool _emailHasError = false;
+  String? _nameErrorText;
+  String? _emailErrorText;
 
   @override
   void initState() {
@@ -47,21 +48,19 @@ class _TembusanFormPageState extends State<TembusanFormPage> {
 
   // 🔥 VALIDASI REAL-TIME UNTUK NAMA
   void _validateNameRealTime() {
-    if (_nameController.text.isEmpty) return;
-    
     final error = _validateName(_nameController.text);
     setState(() {
       _nameHasError = error != null;
+      _nameErrorText = error;
     });
   }
 
   // 🔥 VALIDASI REAL-TIME UNTUK EMAIL
   void _validateEmailRealTime() {
-    if (_emailController.text.isEmpty) return;
-    
     final error = _validateEmail(_emailController.text);
     setState(() {
       _emailHasError = error != null;
+      _emailErrorText = error;
     });
   }
 
@@ -100,8 +99,19 @@ class _TembusanFormPageState extends State<TembusanFormPage> {
     // 🔥 SEMBUNYIKAN KEYBOARD DAN VALIDASI FORM
     FocusScope.of(context).unfocus();
     
-    if (!_formKey.currentState!.validate()) {
-      // 🔥 TAMPILKAN ALERT ERROR VALIDASI
+    // 🔥 VALIDASI MANUAL TANPA FORM KEY
+    final nameError = _validateName(_nameController.text);
+    final emailError = _validateEmail(_emailController.text);
+    
+    setState(() {
+      _nameHasError = nameError != null;
+      _emailHasError = emailError != null;
+      _nameErrorText = nameError;
+      _emailErrorText = emailError;
+    });
+    
+    // 🔥 CEK JIKA ADA ERROR
+    if (nameError != null || emailError != null) {
       _showValidationErrorAlert();
       return;
     }
@@ -592,152 +602,149 @@ class _TembusanFormPageState extends State<TembusanFormPage> {
               ],
             ),
           ),
-          child: Form(
-            key: _formKey,
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // Header
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: Offset(0, 2),
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.1),
+                          shape: BoxShape.circle,
                         ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(Icons.copy, color: Colors.blue, size: 20),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _isEdit ? 'Edit Tembusan' : 'Tambah Tembusan Baru',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue[900],
-                                ),
+                        child: Icon(Icons.copy, color: Colors.blue, size: 20),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _isEdit ? 'Edit Tembusan' : 'Tambah Tembusan Baru',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue[900],
                               ),
-                              SizedBox(height: 2),
-                              Text(
-                                'Isi form berikut dengan data tembusan',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Isi form berikut dengan data tembusan',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                SizedBox(height: 20),
+                
+                // Form Fields
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        // Nama Tembusan Field
+                        _buildTextField(
+                          controller: _nameController,
+                          label: 'Nama Tembusan',
+                          hintText: 'Masukkan nama tembusan',
+                          icon: Icons.person,
+                          isRequired: true,
+                          hasError: _nameHasError,
+                          errorText: _nameErrorText,
+                        ),
+                        
+                        SizedBox(height: 16),
+                        
+                        // Email Field
+                        _buildTextField(
+                          controller: _emailController,
+                          label: 'Email',
+                          hintText: 'Masukkan alamat email',
+                          icon: Icons.email,
+                          keyboardType: TextInputType.emailAddress,
+                          isRequired: true,
+                          hasError: _emailHasError,
+                          errorText: _emailErrorText,
+                        ),
+                        
+                        SizedBox(height: 16),
+                        
+                        // Send Email Checkbox
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
                               ),
                             ],
                           ),
+                          child: CheckboxListTile(
+                            title: Text(
+                              'Kirim Email Otomatis',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            subtitle: Text(
+                              'Email akan dikirim secara otomatis ketika surat dibuat',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                            value: _sendEmail,
+                            onChanged: (value) {
+                              setState(() {
+                                _sendEmail = value!;
+                              });
+                            },
+                            secondary: Icon(
+                              Icons.send,
+                              color: _sendEmail ? Colors.green : Colors.grey[400],
+                            ),
+                            controlAffinity: ListTileControlAffinity.leading,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
                         ),
+
+                        SizedBox(height: 80),
                       ],
                     ),
                   ),
-                  
-                  SizedBox(height: 20),
-                  
-                  // Form Fields
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          // Nama Tembusan Field
-                          _buildTextField(
-                            controller: _nameController,
-                            label: 'Nama Tembusan',
-                            hintText: 'Masukkan nama tembusan',
-                            icon: Icons.person,
-                            isRequired: true,
-                            hasError: _nameHasError,
-                            validator: _validateName,
-                          ),
-                          
-                          SizedBox(height: 16),
-                          
-                          // Email Field
-                          _buildTextField(
-                            controller: _emailController,
-                            label: 'Email',
-                            hintText: 'Masukkan alamat email',
-                            icon: Icons.email,
-                            keyboardType: TextInputType.emailAddress,
-                            isRequired: true,
-                            hasError: _emailHasError,
-                            validator: _validateEmail,
-                          ),
-                          
-                          SizedBox(height: 16),
-                          
-                          // Send Email Checkbox
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 4,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: CheckboxListTile(
-                              title: Text(
-                                'Kirim Email Otomatis',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                              subtitle: Text(
-                                'Email akan dikirim secara otomatis ketika surat dibuat',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[500],
-                                ),
-                              ),
-                              value: _sendEmail,
-                              onChanged: (value) {
-                                setState(() {
-                                  _sendEmail = value!;
-                                });
-                              },
-                              secondary: Icon(
-                                Icons.send,
-                                color: _sendEmail ? Colors.green : Colors.grey[400],
-                              ),
-                              controlAffinity: ListTileControlAffinity.leading,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-
-                          SizedBox(height: 80),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -785,14 +792,14 @@ class _TembusanFormPageState extends State<TembusanFormPage> {
     );
   }
 
-  // 🔥 BUILD TEXTFIELD DENGAN STYLING ERROR YANG KONSISTEN
+  // ✅ BUILD TEXTFIELD DENGAN VALIDASI YANG DIPERBAIKI
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required String hintText,
     required IconData icon,
     required bool hasError,
-    required String? Function(String?)? validator,
+    required String? errorText,
     TextInputType keyboardType = TextInputType.text,
     bool isRequired = false,
   }) {
@@ -808,7 +815,7 @@ class _TembusanFormPageState extends State<TembusanFormPage> {
           ),
         ],
       ),
-      child: TextFormField(
+      child: TextField(
         controller: controller,
         keyboardType: keyboardType,
         decoration: InputDecoration(
@@ -835,7 +842,7 @@ class _TembusanFormPageState extends State<TembusanFormPage> {
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
-              color: hasError ? Colors.red : Colors.blue,
+              color: Colors.blue, // ✅ SELALU BIRU SAAT FOCUS
               width: 2,
             ),
           ),
@@ -856,6 +863,7 @@ class _TembusanFormPageState extends State<TembusanFormPage> {
           hintStyle: TextStyle(
             color: hasError ? Colors.red.withOpacity(0.6) : Colors.grey[500],
           ),
+          errorText: errorText,
           errorStyle: TextStyle(
             color: Colors.red,
             fontSize: 12,
@@ -867,29 +875,6 @@ class _TembusanFormPageState extends State<TembusanFormPage> {
           color: hasError ? Colors.red : Colors.grey[800],
           fontSize: 14,
         ),
-        validator: validator,
-        onChanged: (value) {
-          // Real-time validation feedback
-          if (value.isNotEmpty) {
-            final error = validator!(value);
-            setState(() {
-              if (controller == _nameController) {
-                _nameHasError = error != null;
-              } else if (controller == _emailController) {
-                _emailHasError = error != null;
-              }
-            });
-          } else {
-            // Reset error state ketika kosong
-            setState(() {
-              if (controller == _nameController) {
-                _nameHasError = false;
-              } else if (controller == _emailController) {
-                _emailHasError = false;
-              }
-            });
-          }
-        },
       ),
     );
   }

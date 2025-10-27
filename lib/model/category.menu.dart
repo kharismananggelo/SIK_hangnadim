@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:sik_hangnadim_mobile/pages/SIK/sik_form.dart';
+import 'package:sik_hangnadim_mobile/pages/approvals_page.dart';
 import '../widgets/appbar.dart';
 import '../pages/masterData/index.dart';
 import '../pages/vendor/vendor_index.dart';
 import '../pages/Approver/index.dart'; // Sesuaikan path dengan struktur folder Anda
+import '../Approval/approval_index.dart'; // Sesuaikan path dengan struktur folder Anda
 import '../pages/SIK/SIK_index.dart'; // Sesuaikan path dengan struktur folder Anda
 
 
@@ -131,29 +133,8 @@ static void _navigateToApprover(BuildContext context) {
   // 3. Persetujuan - METHOD YANG DIBUTUHKAN
   static void _navigateToPersetujuan(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          appBar: CustomAppBar(
-            title: 'Persetujuan',
-            showBackButton: true,
-            onBackPressed: () => Navigator.of(context).pop(),
-          ),
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.approval, size: 64, color: Colors.orange),
-                SizedBox(height: 16),
-                Text(
-                  'Halaman Persetujuan',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-                Text('Manajemen persetujuan dokumen'),
-              ],
-            ),
-          ),
-        ),
+       MaterialPageRoute(
+        builder: (context) => ApprovalIndexPage(), // Arahkan ke halaman index approver yang sudah ada
       ),
     );
   }

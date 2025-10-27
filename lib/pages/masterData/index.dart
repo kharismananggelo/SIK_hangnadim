@@ -462,55 +462,48 @@ class _MasterDataPageState extends State<MasterDataPage> {
     );
   }
 
- Widget _buildEnhancedFAB() {
-  return Container(
-    height: 56,
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        colors: [
-          Color(0xFF64B5F6),  // Biru muda yang halus
-          Color(0xFF1976D2),  // Biru medium
-        ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: [
-        BoxShadow(
-          color: Color(0xFF1976D2).withOpacity(0.3), // Shadow lebih halus
-          blurRadius: 12,
-          offset: Offset(0, 4),
-        )
-      ],
-    ),
-    child: FloatingActionButton.extended(
-      onPressed: _navigateToCreateForm,
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
+  Widget _buildEnhancedFAB() {
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        color: Colors.blue, // 🔥 GUNAKAN WARNA SOLID BUKAN GRADIENT
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0xFF1976D2).withOpacity(0.3),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          )
+        ],
       ),
-      icon: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.25), // Lebih halus
-          shape: BoxShape.circle,
+      child: FloatingActionButton.extended(
+        onPressed: _navigateToCreateForm,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: Icon(Icons.add, size: 18, color: Colors.white),
-      ),
-      label: Text(
-        'Tambah Data',
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-          color: Colors.white,
-          letterSpacing: 0.5,
+        icon: Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.25),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.add, size: 18, color: Colors.white),
+        ),
+        label: Text(
+          'Tambah Data',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: Colors.white,
+            letterSpacing: 0.5,
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildLoadingWidget() {
     return Center(
