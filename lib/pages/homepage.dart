@@ -66,10 +66,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
-
   void _getCategoriesWithNavigation(BuildContext context) {
     final newCategories = CategoriModel.getCategoriesWithNavigation(context);
-    
+
     if (newCategories.length != categories.length) {
       setState(() {
         categories = newCategories;
@@ -112,11 +111,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             CircleAvatar(
               radius: 20,
               backgroundColor: Colors.blue[100],
-              child: Icon(
-                Icons.person,
-                color: Colors.blue,
-                size: 20,
-              ),
+              child: Icon(Icons.person, color: Colors.blue, size: 20),
             ),
             SizedBox(width: 12),
             Expanded(
@@ -125,10 +120,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 children: [
                   Text(
                     'Selamat Datang,',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                   Text(
                     'kharisman!',
@@ -154,7 +146,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ),
         ],
       ),
-      
+
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -163,9 +155,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFFF8FDFF),     
-              Color(0xFFF5FBFF),     
-              Color(0xFFF2F9FF),     
+              Color(0xFFF8FDFF),
+              Color(0xFFF5FBFF),
+              Color(0xFFF2F9FF),
               Colors.white,
             ],
             stops: [0.0, 0.3, 0.6, 1.0],
@@ -188,14 +180,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       width: 160,
                       height: 80,
                     ),
-                  
+
                     SizedBox(height: 8),
                     Text(
                       'Kelola semua aktivitas izin Anda di satu tempat',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
                 ),
@@ -203,7 +192,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
               // Statistics Chart
               if (!isLoading && errorMessage.isEmpty)
-                StatisticsChart(workPermits: workPermits,  onRefresh: _loadWorkPermits,)
+                StatisticsChart(
+                  workPermits: workPermits,
+                  onRefresh: _loadWorkPermits,
+                )
               else if (isLoading)
                 _buildLoadingChart()
               else
@@ -221,7 +213,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       blurRadius: 15,
                       offset: Offset(0, 6),
                       spreadRadius: 2,
-                    )
+                    ),
                   ],
                 ),
                 child: Column(
@@ -255,7 +247,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
                     // Grid Menu
                     _buildGridMenu(),
-                    
+
                     SizedBox(height: 20),
                   ],
                 ),
@@ -283,7 +275,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             blurRadius: 15,
             offset: Offset(0, 6),
             spreadRadius: 2,
-          )
+          ),
         ],
       ),
       child: Center(
@@ -311,7 +303,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             blurRadius: 15,
             offset: Offset(0, 6),
             spreadRadius: 2,
-          )
+          ),
         ],
       ),
       child: Center(
@@ -344,12 +336,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
               ),
               SizedBox(height: 16),
-              Text(
-                'Memuat menu...',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                ),
-              ),
+              Text('Memuat menu...', style: TextStyle(color: Colors.grey[600])),
             ],
           ),
         ),
@@ -396,9 +383,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   color: category.boxColor.withOpacity(0.2),
                   shape: BoxShape.circle,
                 ),
-                child: Center(
-                  child: _buildCategoryIcon(category),
-                ),
+                child: Center(child: _buildCategoryIcon(category)),
               ),
               SizedBox(height: 8),
               Padding(
@@ -440,7 +425,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Widget _getFallbackIcon(String categoryName) {
     IconData iconData;
     Color color = Colors.blue;
-    
+
     switch (categoryName) {
       case 'Masterdata':
         iconData = Icons.storage;
@@ -486,7 +471,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         iconData = Icons.apps;
         color = Colors.grey;
     }
-    
+
     return Icon(iconData, size: 25, color: color);
   }
 }

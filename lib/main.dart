@@ -8,14 +8,15 @@ import 'pages/signuppage.dart';
 import 'pages/qr_scanner_page.dart';
 import 'pages/profile_page.dart';
 import 'widgets/bottomBar.dart';
+import 'utils/storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Inisialisasi permissions
   await initializePermissions();
-  
-  runApp(MyApp());
+
+  runApp(const MyApp());
 }
 
 Future<void> initializePermissions() async {
@@ -32,32 +33,42 @@ Future<void> initializePermissions() async {
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  Future<bool> _checkLoginStatus() async {
+    final token = await Storage.getToken();
+    return token != null && token.isNotEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: Future.delayed(Duration(seconds: 2)),
+    return FutureBuilder<bool>(
+      future: _checkLoginStatus(),
       builder: (context, snapshot) {
+        // Tampilkan splash screen saat menunggu hasil
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return SplashScreen();
-        } else {
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            title: 'SIK Hangnadim Mobile',
-            theme: ThemeData(
-              primarySwatch: Colors.blue,
-              useMaterial3: true,
-              fontFamily: 'Poppins',
-            ),
-            home: Login(), // ✅ Login sebagai halaman awal
-            routes: {
-              '/login': (context) => Login(),
-              '/home': (context) => HomePage(), // ✅ Tambah route untuk HomePage
-              '/signup': (context) => Signup(),
-              '/approvals': (context) => ApprovalsPage(),
-              '/dashboard': (context) => MainNavigationWrapper(),
-            },
-          );
+          return const SplashScreen();
         }
+
+        final isLoggedIn = snapshot.data ?? false;
+
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'SIK Hangnadim Mobile',
+          theme: ThemeData(
+            primarySwatch: Colors.blue,
+            useMaterial3: true,
+            fontFamily: 'Poppins',
+          ),
+          home: isLoggedIn ? const MainNavigationWrapper() : const Login(),
+          routes: {
+            '/login': (context) => const Login(),
+            '/signup': (context) => Daftar(),
+            '/dashboard': (context) => const MainNavigationWrapper(),
+            '/home': (context) => HomePage(),
+            '/approvals': (context) => ApprovalsPage(),
+          },
+        );
       },
     );
   }
@@ -73,11 +84,7 @@ class MainNavigationWrapper extends StatefulWidget {
 class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = [
-    HomePage(), // ✅ HomePage langsung digunakan di sini
-    QRScannerPage(),
-    ProfilePage(),
-  ];
+  final List<Widget> _pages = [HomePage(), QRScannerPage(), ProfilePage()];
 
   final List<BottomToolbarItem> _bottomToolbarItems = [
     BottomToolbarItem(
@@ -106,10 +113,7 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: SafeArea(
         child: CustomBottomToolbar(
           currentIndex: _currentIndex,
