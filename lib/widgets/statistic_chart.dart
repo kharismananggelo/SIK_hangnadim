@@ -8,7 +8,7 @@ class StatisticsChart extends StatefulWidget {
   final VoidCallback onRefresh;
 
   const StatisticsChart({
-    super.key, 
+    super.key,
     required this.workPermits,
     required this.onRefresh,
   });
@@ -17,7 +17,8 @@ class StatisticsChart extends StatefulWidget {
   State<StatisticsChart> createState() => _StatisticsChartState();
 }
 
-class _StatisticsChartState extends State<StatisticsChart> with TickerProviderStateMixin {
+class _StatisticsChartState extends State<StatisticsChart>
+    with TickerProviderStateMixin {
   String? _selectedCategory;
   bool _isRefreshing = false;
   late AnimationController _chartAnimationController;
@@ -38,7 +39,7 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
       parent: _chartAnimationController,
       curve: Curves.easeInOutCubic,
     );
-    
+
     _refreshAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -52,9 +53,9 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
       parent: _segmentTransitionController,
       curve: Curves.easeInOut,
     );
-    
+
     super.initState();
-    
+
     _chartAnimationController.forward();
   }
 
@@ -69,7 +70,7 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
   Map<String, int> _calculateStatistics() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    
+
     int aktif = 0;
     int selesai = 0;
     int expired = 0;
@@ -77,7 +78,11 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
     int expireHariIni = 0;
 
     for (var permit in widget.workPermits) {
-      final endDate = DateTime(permit.endedAt.year, permit.endedAt.month, permit.endedAt.day);
+      final endDate = DateTime(
+        permit.endedAt.year,
+        permit.endedAt.month,
+        permit.endedAt.day,
+      );
       final isExpired = endDate.isBefore(today);
       final expiresToday = endDate.isAtSameMomentAs(today);
 
@@ -121,39 +126,38 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
   }
 
   void _handleChartTap(String category) {
-  if (_isRefreshing) return;
-  
-  final stats = _calculateStatistics();
-  final currentSelected = _selectedCategory;
-  
-  setState(() {
-    _previousSelectedCategory = _selectedCategory;
-    if (_selectedCategory == category) {
-      _selectedCategory = null;
+    if (_isRefreshing) return;
+
+    final stats = _calculateStatistics();
+
+    setState(() {
+      _previousSelectedCategory = _selectedCategory;
+      if (_selectedCategory == category) {
+        _selectedCategory = null;
+      } else {
+        _selectedCategory = category;
+      }
+    });
+
+    // PERBAIKAN: Selalu gunakan segment transition untuk perubahan segment
+    // Hanya restart chart animation jika benar-benar perlu
+    final shouldRestartAnimation =
+        stats[category] == 0 ||
+        (_selectedCategory != null && stats[_selectedCategory!] == 0);
+
+    if (shouldRestartAnimation) {
+      _chartAnimationController.forward(from: 0.0);
+      _segmentTransitionController.reset();
     } else {
-      _selectedCategory = category;
+      _segmentTransitionController.forward(from: 0.0);
     }
-  });
-  
-  // PERBAIKAN: Selalu gunakan segment transition untuk perubahan segment
-  // Hanya restart chart animation jika benar-benar perlu
-  final shouldRestartAnimation = 
-      stats[category] == 0 || 
-      (_selectedCategory != null && stats[_selectedCategory!] == 0);
-  
-  if (shouldRestartAnimation) {
-    _chartAnimationController.forward(from: 0.0);
-    _segmentTransitionController.reset();
-  } else {
-    _segmentTransitionController.forward(from: 0.0);
   }
-}
 
   Future<void> _handleRefresh() async {
     if (_isRefreshing) return;
-    
+
     _refreshAnimationController.repeat();
-    
+
     setState(() {
       _isRefreshing = true;
       _previousSelectedCategory = null;
@@ -189,7 +193,7 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
             blurRadius: 15,
             offset: const Offset(0, 6),
             spreadRadius: 2,
-          )
+          ),
         ],
       ),
       height: 460,
@@ -214,10 +218,7 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
                     const SizedBox(height: 4),
                     Text(
                       'Klik bagian chart untuk melihat detail surat',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
                 ),
@@ -231,7 +232,9 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
                             padding: EdgeInsets.all(8),
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.blue,
+                              ),
                             ),
                           ),
                         )
@@ -252,7 +255,7 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
             ),
           ),
 
-          if (_isRefreshing) 
+          if (_isRefreshing)
             _buildRefreshingChartSection()
           else
             _buildAnimatedChartSection(),
@@ -272,17 +275,17 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
   Widget _buildAnimatedChartSection() {
     final stats = _calculateStatistics();
     final total = stats.values.reduce((a, b) => a + b);
-    
-    final selectedCount = _selectedCategory != null 
-        ? stats[_selectedCategory] ?? 0 
+
+    final selectedCount = _selectedCategory != null
+        ? stats[_selectedCategory] ?? 0
         : total;
-    
-    final selectedPercentage = _selectedCategory != null 
-        ? _calculatePercentage(selectedCount, total) 
+
+    final selectedPercentage = _selectedCategory != null
+        ? _calculatePercentage(selectedCount, total)
         : 1.0;
 
-    final selectedColor = _selectedCategory != null 
-        ? _getColorForCategory(_selectedCategory!) 
+    final selectedColor = _selectedCategory != null
+        ? _getColorForCategory(_selectedCategory!)
         : Colors.blue[900];
 
     final chartData = [
@@ -290,15 +293,23 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
       _ChartData('Selesai', stats['Selesai']!, const Color(0xFF2196F3)),
       _ChartData('Pending', stats['Pending']!, const Color(0xFFFF9800)),
       _ChartData('Expired', stats['Expired']!, const Color(0xFFF44336)),
-      _ChartData('Expire Hari Ini', stats['Expire Hari Ini']!, const Color(0xFF9C27B0)),
+      _ChartData(
+        'Expire Hari Ini',
+        stats['Expire Hari Ini']!,
+        const Color(0xFF9C27B0),
+      ),
     ];
 
     final validData = chartData.where((data) => data.count > 0).toList();
 
-    final isSelectedCategoryEmpty = _selectedCategory != null && stats[_selectedCategory] == 0;
+    final isSelectedCategoryEmpty =
+        _selectedCategory != null && stats[_selectedCategory] == 0;
 
     return AnimatedBuilder(
-      animation: Listenable.merge([_chartAnimation, _segmentTransitionAnimation]),
+      animation: Listenable.merge([
+        _chartAnimation,
+        _segmentTransitionAnimation,
+      ]),
       builder: (context, child) {
         return Container(
           height: 120,
@@ -355,10 +366,12 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
                     CircularProgressIndicator(
                       value: 1.0,
                       strokeWidth: 10,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[300]!),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.grey[300]!,
+                      ),
                       backgroundColor: Colors.transparent,
                     ),
-                    
+
                     if (validData.isNotEmpty)
                       GestureDetector(
                         onTapDown: (details) {
@@ -372,12 +385,13 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
                             selectedCategory: _selectedCategory,
                             previousSelectedCategory: _previousSelectedCategory,
                             chartAnimation: _chartAnimation,
-                            segmentTransitionAnimation: _segmentTransitionAnimation,
+                            segmentTransitionAnimation:
+                                _segmentTransitionAnimation,
                             isSelectedCategoryEmpty: isSelectedCategoryEmpty,
                           ),
                         ),
                       ),
-                    
+
                     Container(
                       width: 80,
                       height: 80,
@@ -391,7 +405,7 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              _selectedCategory != null 
+                              _selectedCategory != null
                                   ? '${(selectedPercentage * 100).toStringAsFixed(0)}%'
                                   : '100%',
                               style: TextStyle(
@@ -402,7 +416,9 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              _selectedCategory != null ? _selectedCategory! : 'Total',
+                              _selectedCategory != null
+                                  ? _selectedCategory!
+                                  : 'Total',
                               style: const TextStyle(
                                 fontSize: 10,
                                 color: Colors.grey,
@@ -468,7 +484,7 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[300]!),
                   backgroundColor: Colors.transparent,
                 ),
-                
+
                 RotationTransition(
                   turns: _refreshAnimationController,
                   child: const CircularProgressIndicator(
@@ -476,7 +492,7 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
                   ),
                 ),
-                
+
                 Container(
                   width: 80,
                   height: 80,
@@ -518,20 +534,46 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
   Widget _buildNormalStatisticsList() {
     final stats = _calculateStatistics();
     final statItems = [
-      _StatItem('Aktif', stats['Aktif']!, const Color(0xFF4CAF50), 'SIK yang sedang aktif (berjalan)'),
-      _StatItem('Selesai', stats['Selesai']!, const Color(0xFF2196F3), 'SIK yang sudah selesai dan dikonfirmasi'),
-      _StatItem('Expired', stats['Expired']!, const Color(0xFFF44336), 'SIK yang sudah expired'),
-      _StatItem('Pending', stats['Pending']!, const Color(0xFFFF9800), 'SIK Pending, perlu direview'),
-      _StatItem('Expire Hari Ini', stats['Expire Hari Ini']!, const Color(0xFF9C27B0), 'SIK yang akan expire hari ini'),
+      _StatItem(
+        'Aktif',
+        stats['Aktif']!,
+        const Color(0xFF4CAF50),
+        'SIK yang sedang aktif (berjalan)',
+      ),
+      _StatItem(
+        'Selesai',
+        stats['Selesai']!,
+        const Color(0xFF2196F3),
+        'SIK yang sudah selesai dan dikonfirmasi',
+      ),
+      _StatItem(
+        'Expired',
+        stats['Expired']!,
+        const Color(0xFFF44336),
+        'SIK yang sudah expired',
+      ),
+      _StatItem(
+        'Pending',
+        stats['Pending']!,
+        const Color(0xFFFF9800),
+        'SIK Pending, perlu direview',
+      ),
+      _StatItem(
+        'Expire Hari Ini',
+        stats['Expire Hari Ini']!,
+        const Color(0xFF9C27B0),
+        'SIK yang akan expire hari ini',
+      ),
     ];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: ListView(
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.only(top: 12, bottom: 16),
         physics: const NeverScrollableScrollPhysics(),
         children: statItems.map((item) => _buildStatListItem(item)).toList(),
-      ));
+      ),
+    );
   }
 
   Widget _buildRefreshingStatisticsList() {
@@ -547,52 +589,58 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
 
   Widget _buildStatListItem(_StatItem item) {
     final isSelected = _selectedCategory == item.title;
-    
+
     return GestureDetector(
       onTap: () => _handleChartTap(item.title),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
         width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 6),
+        margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          color: isSelected ? item.color.withOpacity(0.1) : Colors.transparent,
-          border: isSelected ? Border.all(color: item.color, width: 1) : null,
-          boxShadow: isSelected ? [
-            BoxShadow(
-              color: item.color.withOpacity(0.2),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            )
-          ] : null,
+          color: isSelected ? item.color.withOpacity(0.06) : Colors.transparent,
+          border: isSelected
+              ? Border.all(color: item.color.withOpacity(0.9), width: 1)
+              : null,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: item.color.withOpacity(0.08),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               width: isSelected ? 8 : 6,
               height: isSelected ? 8 : 6,
-              margin: EdgeInsets.only(top: isSelected ? 4 : 5),
               decoration: BoxDecoration(
                 color: item.color,
                 shape: BoxShape.circle,
-                boxShadow: isSelected ? [
-                  BoxShadow(
-                    color: item.color.withOpacity(0.5),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  )
-                ] : null,
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: item.color.withOpacity(0.35),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ]
+                    : null,
               ),
             ),
-            const SizedBox(width: 6),
-            
+            const SizedBox(width: 10),
+
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     item.title,
@@ -602,7 +650,7 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
                       color: Colors.grey[800],
                     ),
                   ),
-                  const SizedBox(height: 1),
+                  const SizedBox(height: 4),
                   Text(
                     item.description,
                     style: TextStyle(
@@ -614,27 +662,38 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
                 ],
               ),
             ),
-            
+
+            const SizedBox(width: 10),
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: EdgeInsets.symmetric(horizontal: isSelected ? 12 : 10, vertical: isSelected ? 4 : 3),
-              decoration: BoxDecoration(
-                color: item.color.withOpacity(isSelected ? 0.2 : 0.1),
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: isSelected ? [
-                  BoxShadow(
-                    color: item.color.withOpacity(0.3),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  )
-                ] : null,
+              padding: EdgeInsets.symmetric(
+                horizontal: isSelected ? 14 : 12,
+                vertical: isSelected ? 6 : 5,
               ),
-              child: Text(
-                item.count.toString(),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: item.color,
+              decoration: BoxDecoration(
+                color: item.color.withOpacity(isSelected ? 0.18 : 0.12),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: item.color.withOpacity(0.12),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 28),
+                child: Center(
+                  child: Text(
+                    item.count.toString(),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: item.color,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -647,35 +706,35 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
   Widget _buildRefreshingStatListItem() {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.all(6),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: 6,
             height: 6,
-            margin: const EdgeInsets.only(top: 5),
             decoration: BoxDecoration(
               color: Colors.grey[300],
               shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 6),
-          
+          const SizedBox(width: 10),
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 60,
+                  width: 80,
                   height: 13,
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                const SizedBox(height: 1),
+                const SizedBox(height: 4),
                 Container(
                   width: double.infinity,
                   height: 11,
@@ -687,12 +746,12 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
               ],
             ),
           ),
-          
+
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
               color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Container(
               width: 20,
@@ -708,31 +767,35 @@ class _StatisticsChartState extends State<StatisticsChart> with TickerProviderSt
     );
   }
 
-  void _handleChartTapOnSegment(TapDownDetails details, List<_ChartData> data, int total) {
+  void _handleChartTapOnSegment(
+    TapDownDetails details,
+    List<_ChartData> data,
+    int total,
+  ) {
     if (_isRefreshing) return;
-    
+
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final localPosition = renderBox.globalToLocal(details.globalPosition);
-    
+
     final center = const Offset(50, 50);
     final radius = 45.0;
-    
+
     final distance = (localPosition - center).distance;
-    
+
     if (distance <= radius) {
       final dx = localPosition.dx - center.dx;
       final dy = localPosition.dy - center.dy;
       var angle = (atan2(dy, dx) * 180 / pi) + 90;
       if (angle < 0) angle += 360;
-      
+
       double cumulativeAngle = 0.0;
-      
+
       for (var chartData in data) {
         final percentage = chartData.count / total;
         final sweepAngle = percentage * 360;
-        
+
         cumulativeAngle += sweepAngle;
-        
+
         if (angle <= cumulativeAngle) {
           _handleChartTap(chartData.title);
           break;
@@ -791,13 +854,17 @@ class _AnimatedChartPainter extends CustomPainter {
     final validDataCount = validData.length;
 
     // PERBAIKAN: Cek apakah selected category valid (ada di validData)
-    final isSelectedCategoryValid = selectedCategory != null && 
+    final isSelectedCategoryValid =
+        selectedCategory != null &&
         validData.any((d) => d.title == selectedCategory);
-    final isPreviousCategoryValid = previousSelectedCategory != null && 
+    final isPreviousCategoryValid =
+        previousSelectedCategory != null &&
         validData.any((d) => d.title == previousSelectedCategory);
 
     // PERBAIKAN: Hitung jumlah segment yang benar untuk distribusi
-    final segmentsForDistribution = isSelectedCategoryValid ? validDataCount - 1 : 0;
+    final segmentsForDistribution = isSelectedCategoryValid
+        ? validDataCount - 1
+        : 0;
 
     if (isSelectedCategoryEmpty) {
       final paint = Paint()
@@ -820,25 +887,30 @@ class _AnimatedChartPainter extends CustomPainter {
       if (chartData.count == 0) continue;
 
       final percentage = chartData.count / total;
-      var animatedSweepAngle = percentage * 360 * (pi / 180) * chartAnimation.value;
+      var animatedSweepAngle =
+          percentage * 360 * (pi / 180) * chartAnimation.value;
 
       final isSelected = selectedCategory == chartData.title;
       final wasSelected = previousSelectedCategory == chartData.title;
 
       // PERBAIKAN: Animasi hanya untuk perubahan state yang valid
-      final shouldAnimateTransition = 
+      final shouldAnimateTransition =
           (previousSelectedCategory == null && selectedCategory != null) ||
           (previousSelectedCategory != null && selectedCategory == null) ||
-          (previousSelectedCategory != null && selectedCategory != null && 
-           previousSelectedCategory != selectedCategory);
+          (previousSelectedCategory != null &&
+              selectedCategory != null &&
+              previousSelectedCategory != selectedCategory);
 
       // PERBAIKAN: Hitung target state dengan pengecekan validitas
       double targetSweepAngle;
       if (isSelected && isSelectedCategoryValid) {
         targetSweepAngle = 0.80 * 360 * (pi / 180) * chartAnimation.value;
       } else if (selectedCategory != null && isSelectedCategoryValid) {
-        final smallPercentage = segmentsForDistribution > 0 ? 0.20 / segmentsForDistribution : 0.0;
-        targetSweepAngle = smallPercentage * 360 * (pi / 180) * chartAnimation.value;
+        final smallPercentage = segmentsForDistribution > 0
+            ? 0.20 / segmentsForDistribution
+            : 0.0;
+        targetSweepAngle =
+            smallPercentage * 360 * (pi / 180) * chartAnimation.value;
       } else {
         targetSweepAngle = percentage * 360 * (pi / 180) * chartAnimation.value;
       }
@@ -849,15 +921,21 @@ class _AnimatedChartPainter extends CustomPainter {
         startSweepAngle = 0.80 * 360 * (pi / 180) * chartAnimation.value;
       } else if (previousSelectedCategory != null && isPreviousCategoryValid) {
         final previousSegmentsCount = validDataCount - 1;
-        final smallPercentage = previousSegmentsCount > 0 ? 0.20 / previousSegmentsCount : 0.0;
-        startSweepAngle = smallPercentage * 360 * (pi / 180) * chartAnimation.value;
+        final smallPercentage = previousSegmentsCount > 0
+            ? 0.20 / previousSegmentsCount
+            : 0.0;
+        startSweepAngle =
+            smallPercentage * 360 * (pi / 180) * chartAnimation.value;
       } else {
         startSweepAngle = percentage * 360 * (pi / 180) * chartAnimation.value;
       }
 
       // APLIKASI ANIMASI SMOOTH
       if (shouldAnimateTransition && segmentTransitionAnimation.value < 1.0) {
-        animatedSweepAngle = startSweepAngle + (targetSweepAngle - startSweepAngle) * segmentTransitionAnimation.value;
+        animatedSweepAngle =
+            startSweepAngle +
+            (targetSweepAngle - startSweepAngle) *
+                segmentTransitionAnimation.value;
       } else {
         animatedSweepAngle = targetSweepAngle;
       }
@@ -867,12 +945,18 @@ class _AnimatedChartPainter extends CustomPainter {
       }
 
       // PERBAIKAN: Animasi opacity dengan pengecekan validitas
-      final targetOpacity = isSelected ? 1.0 : (isSelectedCategoryValid && !isSelected ? 0.4 : 1.0);
-      final startOpacity = wasSelected ? 1.0 : (isPreviousCategoryValid && !wasSelected ? 0.4 : 1.0);
-      
+      final targetOpacity = isSelected
+          ? 1.0
+          : (isSelectedCategoryValid && !isSelected ? 0.4 : 1.0);
+      final startOpacity = wasSelected
+          ? 1.0
+          : (isPreviousCategoryValid && !wasSelected ? 0.4 : 1.0);
+
       double currentOpacity;
       if (shouldAnimateTransition && segmentTransitionAnimation.value < 1.0) {
-        currentOpacity = startOpacity + (targetOpacity - startOpacity) * segmentTransitionAnimation.value;
+        currentOpacity =
+            startOpacity +
+            (targetOpacity - startOpacity) * segmentTransitionAnimation.value;
       } else {
         currentOpacity = targetOpacity;
       }
@@ -880,12 +964,19 @@ class _AnimatedChartPainter extends CustomPainter {
       final color = chartData.color.withOpacity(currentOpacity);
 
       // PERBAIKAN: Animasi stroke width dengan pengecekan validitas
-      final targetStrokeWidth = (isSelected && isSelectedCategoryValid) ? strokeWidth + 3 : strokeWidth;
-      final startStrokeWidth = (wasSelected && isPreviousCategoryValid) ? strokeWidth + 3 : strokeWidth;
-      
+      final targetStrokeWidth = (isSelected && isSelectedCategoryValid)
+          ? strokeWidth + 3
+          : strokeWidth;
+      final startStrokeWidth = (wasSelected && isPreviousCategoryValid)
+          ? strokeWidth + 3
+          : strokeWidth;
+
       double currentStrokeWidth;
       if (shouldAnimateTransition && segmentTransitionAnimation.value < 1.0) {
-        currentStrokeWidth = startStrokeWidth + (targetStrokeWidth - startStrokeWidth) * segmentTransitionAnimation.value;
+        currentStrokeWidth =
+            startStrokeWidth +
+            (targetStrokeWidth - startStrokeWidth) *
+                segmentTransitionAnimation.value;
       } else {
         currentStrokeWidth = targetStrokeWidth;
       }

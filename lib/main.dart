@@ -13,7 +13,7 @@ import 'utils/storage.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inisialisasi permissions
+  //inisialisasi permissions
   await initializePermissions();
 
   runApp(const MyApp());
@@ -45,7 +45,7 @@ class MyApp extends StatelessWidget {
     return FutureBuilder<bool>(
       future: _checkLoginStatus(),
       builder: (context, snapshot) {
-        // Tampilkan splash screen saat menunggu hasil
+        //tampilkan splash screen saat menunggu hasil
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SplashScreen();
         }

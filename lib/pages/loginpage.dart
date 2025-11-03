@@ -25,6 +25,34 @@ class _LoginState extends State<Login> {
   String? _emailErrorText;
   String? _passwordErrorText;
   bool _isLoading = false;
+  bool _canSubmit = false;
+
+  void _updateFormState() {
+    final email = emailController.text.trim();
+    final pass = passwordController.text;
+    final can = email.isNotEmpty && pass.isNotEmpty;
+    if (can != _canSubmit) setState(() => _canSubmit = can);
+    // clear field-level errors when user types
+    if (_emailError && email.isNotEmpty) {
+      setState(() {
+        _emailError = false;
+        _emailErrorText = null;
+      });
+    }
+    if (_passwordError && pass.isNotEmpty) {
+      setState(() {
+        _passwordError = false;
+        _passwordErrorText = null;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    emailController.addListener(_updateFormState);
+    passwordController.addListener(_updateFormState);
+  }
 
   void _validateAndLogin() async {
     setState(() {
@@ -53,20 +81,20 @@ class _LoginState extends State<Login> {
       return;
     }
 
-    // Semua input valid, mulai proses login
+    //semua input valid, mulai proses login
     setState(() => _isLoading = true);
 
     try {
-      // 🔹 Panggil API login
+      //panggil API login
       final User user = await _authService.login(
         emailController.text.trim(),
         passwordController.text.trim(),
       );
 
-      // 🔹 Simpan token di local storage untuk auto-login
+      //simpan token di local storage untuk auto-login
       await Storage.saveToken(user.token ?? '');
 
-      // 🔹 Tampilkan notifikasi sukses
+      //tampilan notifikasi sukses
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Selamat datang, ${user.name}!'),
@@ -74,11 +102,11 @@ class _LoginState extends State<Login> {
         ),
       );
 
-      // 🔹 Navigasi ke dashboard/home
+      //navigasi ke home
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/dashboard');
     } catch (e) {
-      // Map common server/format errors to friendly messages
+      //ubah error server
       final errStr = e.toString();
       String userMessage = 'Login gagal. Silakan coba lagi.';
 
@@ -86,12 +114,15 @@ class _LoginState extends State<Login> {
         userMessage = 'Endpoint tidak ditemukan. Periksa konfigurasi backend.';
       } else if (errStr.contains('SERVER_ERROR')) {
         userMessage = 'Server sedang bermasalah. Coba lagi nanti.';
-      } else if (errStr.contains('INVALID_RESPONSE') || errStr.contains('<!DOCTYPE') || errStr.contains('<html')) {
+      } else if (errStr.contains('INVALID_RESPONSE') ||
+          errStr.contains('<!DOCTYPE') ||
+          errStr.contains('<html')) {
         userMessage = 'Respons server tidak valid. Coba lagi nanti.';
-      } else if (errStr.contains('LOGIN_FAILED') || errStr.contains('Login gagal')) {
+      } else if (errStr.contains('LOGIN_FAILED') ||
+          errStr.contains('Login gagal')) {
         userMessage = 'Email atau password tidak valid.';
       } else {
-        // Fallback: show the exception short form (without the leading 'Exception:')
+        //short form
         userMessage = errStr.replaceFirst('Exception: ', '');
       }
 
@@ -136,7 +167,7 @@ class _LoginState extends State<Login> {
                 ),
                 const SizedBox(height: 40),
 
-                // Email input field
+                //email input field
                 TextGlobal(
                   controller: emailController,
                   label: 'Email',
@@ -149,7 +180,7 @@ class _LoginState extends State<Login> {
 
                 const SizedBox(height: 25),
 
-                // Password input field
+                //password input field
                 TextGlobal(
                   controller: passwordController,
                   label: 'Password',
@@ -162,16 +193,16 @@ class _LoginState extends State<Login> {
 
                 const SizedBox(height: 40),
 
-                // 🔹 Login button (fix: tidak error meski onTap null)
+                //login button: disabled (grey) until inputs filled
                 ButtonGlobal(
                   buttonText: _isLoading ? 'Loading...' : 'Login',
-                  onTap: _isLoading ? () {} : _validateAndLogin,
-                  isLoading: _isLoading, // jika ButtonGlobal punya param ini
+                  onTap: (!_canSubmit || _isLoading) ? null : _validateAndLogin,
+                  isLoading: _isLoading,
                 ),
 
                 const SizedBox(height: 70),
 
-                // 🔹 Hapus const biar tidak error
+                //hapus const biar tidak error
                 SocialLogin(),
               ],
             ),
@@ -179,7 +210,7 @@ class _LoginState extends State<Login> {
         ),
       ),
 
-      // Bottom navigation
+      //bottom navigation
       bottomNavigationBar: SafeArea(
         child: Container(
           height: 50,
@@ -207,5 +238,14 @@ class _LoginState extends State<Login> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    emailController.removeListener(_updateFormState);
+    passwordController.removeListener(_updateFormState);
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
   }
 }

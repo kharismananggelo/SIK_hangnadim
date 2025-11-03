@@ -37,7 +37,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Refresh ketika app kembali dari background
+      //refresh ketika app kembali dari background
       _loadWorkPermits();
     }
   }
@@ -96,8 +96,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        scrolledUnderElevation: 0, // TAMBAHKAN INI
-        surfaceTintColor: Colors.white, // TAMBAHKAN INI
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.white,
         automaticallyImplyLeading: false,
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: Colors.white,
@@ -164,11 +164,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ),
         ),
         child: SingleChildScrollView(
-          physics: ClampingScrollPhysics(), // TAMBAHKAN INI UNTUK SMOOTH SCROLL
+          physics: ClampingScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header dengan logo
+              //header dengan logo
               Container(
                 width: double.infinity,
                 padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -190,7 +190,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 ),
               ),
 
-              // Statistics Chart
+              //statistics Chart
               if (!isLoading && errorMessage.isEmpty)
                 StatisticsChart(
                   workPermits: workPermits,
@@ -201,7 +201,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               else
                 _buildErrorChart(),
 
-              // Grid Menu Container
+              //grid Menu Container
               Container(
                 margin: EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -219,7 +219,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Quick Access Section
+                    //quick access section
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                       child: Column(
@@ -245,7 +245,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       ),
                     ),
 
-                    // Grid Menu
+                    //grid Menu
                     _buildGridMenu(),
 
                     SizedBox(height: 20),
@@ -253,7 +253,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 ),
               ),
 
-              // TAMBAHKAN EXTRA SPACE BIAR BISA SCROLL LEBIH JAUH
               SizedBox(height: 50),
             ],
           ),
@@ -323,7 +322,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-  // _buildGridMenu() dan method lainnya tetap sama...
   Widget _buildGridMenu() {
     if (categories.isEmpty) {
       return Container(

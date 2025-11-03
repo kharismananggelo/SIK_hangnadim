@@ -28,18 +28,18 @@ class ButtonGlobal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool disabled = isLoading || onTap == null;
+    final Color bgColor = disabled ? Colors.grey : buttonColor;
+    final Color fgColor = disabled ? Colors.white : textColor;
+
     return InkWell(
-      onTap: isLoading ? null : onTap, // ✅ tombol dinonaktifkan saat loading
+      onTap: disabled ? null : onTap,
       child: Container(
         margin: margin,
         alignment: Alignment.center,
         height: height,
         decoration: BoxDecoration(
-          color: isLoading
-              ? Colors.blue.withOpacity(
-                  0.6,
-                ) // tombol sedikit redup saat loading
-              : buttonColor,
+          color: isLoading ? buttonColor.withOpacity(0.6) : bgColor,
           borderRadius: BorderRadius.circular(borderRadius),
           boxShadow: [
             BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10),
@@ -57,7 +57,7 @@ class ButtonGlobal extends StatelessWidget {
             : Text(
                 buttonText,
                 style: TextStyle(
-                  color: textColor,
+                  color: fgColor,
                   fontSize: fontSize,
                   fontWeight: fontWeight,
                 ),
