@@ -1,0 +1,15 @@
+﻿# SSH Keys
+jainal123
+jainal123.pub
+*.key
+*.pem
+
+# Flutter/Dart
+.dart_tool/
+.ios/
+.android/
+build/
+
+# Environment files
+.env
+.env.*
