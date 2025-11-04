@@ -48,9 +48,37 @@ class AuthService {
 
     if (response.statusCode == 201) {
       final data = jsonDecode(response.body);
+
+      // Some backends may reply 201 but include an errors/message that
+      // indicate the email is already taken or other validation issues.
+      // Treat those as failures rather than silent successes.
+      if (data is Map) {
+        // If an `errors` object exists, surface it as an ApiException
+        if (data.containsKey('errors') && data['errors'] is Map && (data['errors'] as Map).isNotEmpty) {
+          final errorsMap = Map<String, dynamic>.from(data['errors']);
+          final first = errorsMap.values.first;
+          var userMessage = 'Gagal melakukan pendaftaran';
+          if (first is List && first.isNotEmpty) userMessage = first.first.toString();
+          else if (first is String) userMessage = first;
+          userMessage = _localizeMessage(userMessage);
+          throw ApiException(userMessage, errorsMap);
+        }
+
+        // Some APIs return a success HTTP code but include a message like
+        // "The email has already been taken" — detect and convert to an error.
+        if (data.containsKey('message')) {
+          final msg = data['message'].toString();
+          final lower = msg.toLowerCase();
+          if (lower.contains('already been taken') || lower.contains('already taken') || lower.contains('already exists')) {
+            throw ApiException(_localizeMessage(msg), {'email': [msg]});
+          }
+        }
+      }
+
       if (data is Map && data.containsKey('access_token')) {
         await Storage.saveToken(data['access_token']);
       }
+
       // Return the parsed response so callers can inspect whether an
       // access_token was provided or if the server expects an email
       // verification flow.

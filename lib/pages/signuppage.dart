@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:sik_hangnadim_mobile/services/auth_service.dart';
 import 'package:sik_hangnadim_mobile/pages/loginpage.dart';
+import 'package:sik_hangnadim_mobile/pages/homepage.dart';
+import 'package:sik_hangnadim_mobile/utils/validators.dart';
 import '../widgets/text_global.dart';
 import '../widgets/button_global.dart';
 
@@ -245,26 +247,43 @@ class _DaftarState extends State<Daftar> {
     try {
       final auth = AuthService();
 
-      // First: ask backend whether this email exists (deliverable).
-      // If backend cannot answer or the endpoint is missing, this will
-      // throw — we catch below and show a helpful message.
+      // Client-side format validation first
+      if (!Validators.isEmailValid(email)) {
+        setState(() {
+          emailError = 'Format email tidak valid';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Format email tidak valid.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Ask backend whether this email exists (deliverable). We perform a
+      // non-blocking check: if the check fails (network/error) we show a
+      // warning but continue with registration. If the check returns false
+      // (email definitely not deliverable), we block registration.
       bool emailExists = true;
       try {
         emailExists = await auth.checkEmailExists(email);
       } catch (err) {
-        // If the check itself fails, we choose to surface a non-blocking
-        // warning but allow the registration to continue. You can change
-        // this to `return;` if you prefer to block registration when the
-        // email check cannot be performed.
+        // Non-blocking: show warning but allow registration to continue.
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Peringatan: pengecekan email gagal: ${err.toString()}'),
+            content: Text(
+              'Peringatan: pengecekan email gagal: ${err.toString()}',
+            ),
             backgroundColor: Colors.orange,
           ),
         );
       }
 
       if (!emailExists) {
+        setState(() {
+          emailError = 'Email tidak ditemukan/tdk dapat di-deliver';
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Email tidak ada. Mohon periksa alamat email Anda.'),
@@ -275,20 +294,32 @@ class _DaftarState extends State<Daftar> {
       }
 
       // Email exists or check inconclusive — proceed with registration.
-      final Map<String, dynamic> result = await auth.register(
-        brandName,
-        email,
-        vendorName,
-        password,
-        confirm,
-      );
+      await auth.register(brandName, email, vendorName, password, confirm);
 
-      // If the backend returned an access_token we already saved it in
-      // AuthService. Treat this as a normal successful signup.
-      if (result.containsKey('access_token')) {
+      // Treat any successful register response as success. Try to log the
+      // user in automatically; if login fails, fall back to showing the
+      // success message and navigate to the Login page.
+      try {
+        final user = await auth.login(email, password);
+        // Login succeeded and token was saved by AuthService.login.
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Pendaftaran berhasil, silakan login!'),
+            content: Text('Pendaftaran berhasil, masuk sebagai ${user.name}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Future.delayed(const Duration(milliseconds: 800), () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => HomePage()),
+          );
+        });
+      } catch (loginErr) {
+        // Auto-login failed (server may require verification). Show
+        // success message and redirect to Login so the user can try.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Pendaftaran berhasil. Silakan login. ($loginErr)'),
             backgroundColor: Colors.green,
           ),
         );
@@ -298,95 +329,32 @@ class _DaftarState extends State<Daftar> {
             MaterialPageRoute(builder: (context) => const Login()),
           );
         });
-      } else {
-        // No access token — backend likely requires email verification.
-        final serverMessage = (result['message'] ??
-                'Pendaftaran diterima. Silakan cek email Anda untuk verifikasi.')
-            .toString();
-
-        // Show a dialog with options: Resend verification, Check verification status,
-        // or go back to Login.
-        await showDialog<void>(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            title: const Text('Verifikasi Email Diperlukan'),
-            content: Text(serverMessage),
-            actions: [
-              TextButton(
-                onPressed: () async {
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Tutup'),
-              ),
-              TextButton(
-                onPressed: () async {
-                  Navigator.of(context).pop();
-                  // Try resending verification email
-                  try {
-                    await auth.resendVerification(email);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Email verifikasi dikirim ulang.'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  } catch (err) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Gagal kirim ulang: ${err.toString()}'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
-                child: const Text('Kirim Ulang'),
-              ),
-              TextButton(
-                onPressed: () async {
-                  // Check verification status with the backend
-                  try {
-                    final verified = await auth.checkVerificationStatus(email);
-                    if (verified) {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Email sudah terverifikasi. Silakan login.'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => const Login()),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Email belum diverifikasi. Periksa inbox Anda.'),
-                          backgroundColor: Colors.orange,
-                        ),
-                      );
-                    }
-                  } catch (err) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Gagal periksa verifikasi: ${err.toString()}'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
-                child: const Text('Sudah Verifikasi? Cek sekarang'),
-              ),
-            ],
-          ),
-        );
       }
     } catch (e) {
       String msg = 'Terjadi kesalahan saat mendaftar';
       if (e is ApiException) {
+        // If backend indicates the email is already registered, show a
+        // clear, user-friendly message and set the field-level error.
+        final lower = e.userMessage.toLowerCase();
+        final hasEmailErrorKey =
+            e.errors != null && e.errors!.containsKey('email');
+        if (hasEmailErrorKey ||
+            lower.contains('email') &&
+                (lower.contains('already') || lower.contains('sudah'))) {
+          setState(() {
+            emailError = 'Email sudah ada!';
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Email sudah ada!'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
         msg = e.userMessage;
-        // map field-level errors if present
+        // map other field-level errors if present
         if (e.errors != null) {
           final errs = e.errors!;
           setState(() {
@@ -433,6 +401,7 @@ class _DaftarState extends State<Daftar> {
         // show exception message but remove verbose wrapper if present
         msg = e.toString();
       }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal daftar: $msg'),
