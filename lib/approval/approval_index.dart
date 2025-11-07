@@ -19,7 +19,7 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
   bool _isSearching = false;
   final FocusNode _searchFocusNode = FocusNode();
 
-  // Pagination variables
+  //pagination variables
   int _currentPage = 1;
   int _lastPage = 1;
   int _total = 0;
@@ -52,16 +52,26 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
       } else {
         _filteredData = _data.where((item) {
           if (item is! Map) return false;
-          
+
           final workPermitLetter = item['work_permit_letter'] as Map?;
-          
-          final letterNumber = workPermitLetter?['letter_number']?.toString().toLowerCase() ?? '';
-          final vendorName = workPermitLetter?['vendor']?['legal_name']?.toString().toLowerCase() ?? '';
-          final workLocation = workPermitLetter?['work_location']?.toString().toLowerCase() ?? '';
-          final description = workPermitLetter?['description']?.toString().toLowerCase() ?? '';
+
+          final letterNumber =
+              workPermitLetter?['letter_number']?.toString().toLowerCase() ??
+              '';
+          final vendorName =
+              workPermitLetter?['vendor']?['legal_name']
+                  ?.toString()
+                  .toLowerCase() ??
+              '';
+          final workLocation =
+              workPermitLetter?['work_location']?.toString().toLowerCase() ??
+              '';
+          final description =
+              workPermitLetter?['description']?.toString().toLowerCase() ?? '';
           final status = item['status']?.toString().toLowerCase() ?? '';
-          
-          final searchText = '$letterNumber $vendorName $workLocation $description $status';
+
+          final searchText =
+              '$letterNumber $vendorName $workLocation $description $status';
           return searchText.contains(query.toLowerCase());
         }).toList();
       }
@@ -97,37 +107,38 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         print('📊 Raw response type: ${data.runtimeType}');
-        
+
         List<dynamic> items = [];
 
         if (data is Map<String, dynamic>) {
           print('🔑 Response keys: ${data.keys}');
-          
+
           if (data.containsKey('data')) {
             final responseData = data['data'];
             print('📋 Response data type: ${responseData.runtimeType}');
-            
+
             if (responseData is Map<String, dynamic>) {
               print('🔑 Data keys: ${responseData.keys}');
-              
-              if (responseData.containsKey('data') && responseData['data'] is List) {
+
+              if (responseData.containsKey('data') &&
+                  responseData['data'] is List) {
                 items = responseData['data'];
-                
+
                 _currentPage = _convertToInt(responseData['current_page']) ?? 1;
                 _lastPage = _convertToInt(responseData['last_page']) ?? 1;
                 _total = _convertToInt(responseData['total']) ?? items.length;
                 _perPage = _convertToInt(responseData['per_page']) ?? 10;
-                
+
                 print('✅ Using nested data structure');
               }
             } else if (responseData is List<dynamic>) {
               items = responseData;
-              
+
               _currentPage = _convertToInt(data['current_page']) ?? 1;
               _lastPage = _convertToInt(data['last_page']) ?? 1;
               _total = _convertToInt(data['total']) ?? items.length;
               _perPage = _convertToInt(data['per_page']) ?? 10;
-              
+
               print('✅ Using direct list structure');
             }
           }
@@ -177,15 +188,13 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
             _isLoading = false;
           });
         }
-
       } else {
         throw Exception('Failed to load approvals: ${response.statusCode}');
       }
-
     } catch (e) {
       print('❌ Error fetching approvals: $e');
       print('📋 Error type: ${e.runtimeType}');
-      
+
       String errorMessage = 'Gagal memuat data persetujuan. ';
       if (e.toString().contains('Timeout')) {
         errorMessage += 'Timeout: Periksa koneksi internet Anda.';
@@ -208,7 +217,7 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
 
   int? _convertToInt(dynamic value) {
     if (value == null) return null;
-    
+
     if (value is int) {
       return value;
     } else if (value is String) {
@@ -216,7 +225,9 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
     } else if (value is double) {
       return value.toInt();
     } else {
-      print('⚠️ Cannot parse value to int: $value (type: ${value.runtimeType})');
+      print(
+        '⚠️ Cannot parse value to int: $value (type: ${value.runtimeType})',
+      );
       return null;
     }
   }
@@ -224,7 +235,7 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
   void _navigateToCreateForm() {
     FocusScope.of(context).unfocus();
     _searchFocusNode.unfocus();
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => ApprovalFormPage()),
@@ -240,15 +251,13 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
       print('❌ Cannot navigate to detail - invalid item data');
       return;
     }
-    
+
     FocusScope.of(context).unfocus();
     _searchFocusNode.unfocus();
-    
+
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => ApprovalDetailPage(item: item),
-      ),
+      MaterialPageRoute(builder: (context) => ApprovalDetailPage(item: item)),
     ).then((refresh) {
       if (refresh == true) {
         _fetchData();
@@ -261,7 +270,8 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
     if (item is Map) {
       final workPermitLetter = item['work_permit_letter'] as Map?;
       if (workPermitLetter != null) {
-        return workPermitLetter['letter_number']?.toString() ?? 'No Letter Number';
+        return workPermitLetter['letter_number']?.toString() ??
+            'No Letter Number';
       }
       return 'Approval ID: ${item['id']}';
     }
@@ -272,8 +282,11 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
     if (item is Map) {
       final workPermitLetter = item['work_permit_letter'] as Map?;
       if (workPermitLetter != null) {
-        final vendorName = workPermitLetter['vendor']?['legal_name']?.toString() ?? 'No Vendor';
-        final workLocation = workPermitLetter['work_location']?.toString() ?? 'No Location';
+        final vendorName =
+            workPermitLetter['vendor']?['legal_name']?.toString() ??
+            'No Vendor';
+        final workLocation =
+            workPermitLetter['work_location']?.toString() ?? 'No Location';
         return '$vendorName - $workLocation';
       }
       return 'No Work Permit Data';
@@ -321,7 +334,7 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
 
   Widget _buildStatusIndicator(dynamic item) {
     if (item is! Map) return Container();
-    
+
     final status = item['status']?.toString() ?? 'waiting';
     Color statusColor;
     String statusText;
@@ -400,7 +413,9 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           ElevatedButton(
-            onPressed: _currentPage > 1 ? () => _fetchData(page: _currentPage - 1) : null,
+            onPressed: _currentPage > 1
+                ? () => _fetchData(page: _currentPage - 1)
+                : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
               foregroundColor: Colors.white,
@@ -422,7 +437,9 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
             ),
           ),
           ElevatedButton(
-            onPressed: _currentPage < _lastPage ? () => _fetchData(page: _currentPage + 1) : null,
+            onPressed: _currentPage < _lastPage
+                ? () => _fetchData(page: _currentPage + 1)
+                : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
               foregroundColor: Colors.white,
@@ -485,9 +502,9 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xFFF8FDFF),     
-                  Color(0xFFF5FBFF),     
-                  Color(0xFFF2F9FF),     
+                  Color(0xFFF8FDFF),
+                  Color(0xFFF5FBFF),
+                  Color(0xFFF2F9FF),
                   Colors.white,
                 ],
               ),
@@ -518,7 +535,8 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
                           controller: _searchController,
                           focusNode: _searchFocusNode,
                           decoration: InputDecoration(
-                            hintText: 'Cari nomor surat, vendor, lokasi kerja, atau status...',
+                            hintText:
+                                'Cari nomor surat, vendor, lokasi kerja, atau status...',
                             hintStyle: TextStyle(color: Colors.grey[500]),
                             border: InputBorder.none,
                           ),
@@ -527,7 +545,11 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
                       ),
                       if (_isSearching)
                         IconButton(
-                          icon: Icon(Icons.close, size: 18, color: Colors.grey[500]),
+                          icon: Icon(
+                            Icons.close,
+                            size: 18,
+                            color: Colors.grey[500],
+                          ),
                           onPressed: _clearSearch,
                         ),
                     ],
@@ -561,7 +583,10 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
                         ),
                       ),
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.blue.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
@@ -596,14 +621,14 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
                           color: Colors.black.withOpacity(0.1),
                           blurRadius: 15,
                           offset: Offset(0, -2),
-                        )
+                        ),
                       ],
                     ),
                     child: _isLoading
                         ? _buildLoadingWidget()
                         : _errorMessage.isNotEmpty
-                            ? _buildErrorWidget()
-                            : _buildContentWithPagination(),
+                        ? _buildErrorWidget()
+                        : _buildContentWithPagination(),
                   ),
                 ),
               ],
@@ -671,7 +696,7 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
 
   Widget _buildSimpleList() {
     final displayData = _isSearching ? _filteredData : _data;
-    
+
     if (displayData.isEmpty) {
       return _buildEmptyState();
     }
@@ -697,14 +722,16 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
           Icon(Icons.assignment_turned_in, size: 60, color: Colors.grey[400]),
           SizedBox(height: 16),
           Text(
-            _isSearching ? 'Tidak ada hasil ditemukan' : 'Belum ada data persetujuan',
+            _isSearching
+                ? 'Tidak ada hasil ditemukan'
+                : 'Belum ada data persetujuan',
             style: TextStyle(fontSize: 16),
           ),
           SizedBox(height: 8),
           Text(
-            _isSearching 
-              ? 'Coba dengan kata kunci yang berbeda' 
-              : 'Tambahkan persetujuan baru dengan tombol + di bawah',
+            _isSearching
+                ? 'Coba dengan kata kunci yang berbeda'
+                : 'Tambahkan persetujuan baru dengan tombol + di bawah',
             textAlign: TextAlign.center,
           ),
         ],
@@ -713,59 +740,67 @@ class _ApprovalIndexPageState extends State<ApprovalIndexPage> {
   }
 
   Widget _buildEnhancedListItem(int index, dynamic item) {
-  if (item is! Map) {
+    if (item is! Map) {
+      return Card(
+        color: Colors.white, // 🔥 TAMBAHKAN INI
+        margin: EdgeInsets.only(bottom: 12),
+        child: ListTile(
+          leading: Icon(Icons.error, color: Colors.red),
+          title: Text('Data tidak valid'),
+        ),
+      );
+    }
+
+    final subtitle = _getItemSubtitle(item);
+    final workDescription = _getWorkDescription(item);
+    final dateRange = _getDateRange(item);
+    final approverInfo = _getApproverInfo(item);
+
     return Card(
-      color: Colors.white, // 🔥 TAMBAHKAN INI
+      color: Colors.white, // 🔥 TAMBAHKAN INI - BACKGROUND PUTIH
       margin: EdgeInsets.only(bottom: 12),
+      elevation: 2, // 🔥 OPSIONAL: TAMBAH ELEVATION UNTUK SHADOW
       child: ListTile(
-        leading: Icon(Icons.error, color: Colors.red),
-        title: Text('Data tidak valid'),
+        leading: CircleAvatar(
+          backgroundColor: Colors.green.withOpacity(0.1),
+          child: Icon(Icons.assignment_turned_in, color: Colors.green[700]),
+        ),
+        title: Text(
+          _getItemTitle(item),
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (approverInfo.isNotEmpty && approverInfo != 'No Approver Info')
+              Text('Approver: $approverInfo', style: TextStyle(fontSize: 12)),
+            if (subtitle.isNotEmpty)
+              Text(subtitle, style: TextStyle(fontSize: 12)),
+            if (dateRange.isNotEmpty && dateRange != 'No Date Range')
+              Text(
+                dateRange,
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              ),
+            if (workDescription.isNotEmpty &&
+                workDescription != 'No Description')
+              Text(
+                workDescription,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildStatusIndicator(item),
+            SizedBox(width: 8),
+            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.blue[700]),
+          ],
+        ),
+        onTap: () => _navigateToDetail(index, item),
       ),
     );
   }
-
-  final subtitle = _getItemSubtitle(item);
-  final workDescription = _getWorkDescription(item);
-  final dateRange = _getDateRange(item);
-  final approverInfo = _getApproverInfo(item);
-  
-  return Card(
-    color: Colors.white, // 🔥 TAMBAHKAN INI - BACKGROUND PUTIH
-    margin: EdgeInsets.only(bottom: 12),
-    elevation: 2, // 🔥 OPSIONAL: TAMBAH ELEVATION UNTUK SHADOW
-    child: ListTile(
-      leading: CircleAvatar(
-        backgroundColor: Colors.green.withOpacity(0.1),
-        child: Icon(Icons.assignment_turned_in, color: Colors.green[700]),
-      ),
-      title: Text(
-        _getItemTitle(item),
-        style: TextStyle(fontWeight: FontWeight.bold),
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (approverInfo.isNotEmpty && approverInfo != 'No Approver Info') 
-            Text('Approver: $approverInfo', style: TextStyle(fontSize: 12)),
-          if (subtitle.isNotEmpty) Text(subtitle, style: TextStyle(fontSize: 12)),
-          if (dateRange.isNotEmpty && dateRange != 'No Date Range') 
-            Text(dateRange, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-          if (workDescription.isNotEmpty && workDescription != 'No Description')
-            Text(workDescription, 
-                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                 maxLines: 2, overflow: TextOverflow.ellipsis),
-        ],
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildStatusIndicator(item),
-          SizedBox(width: 8),
-          Icon(Icons.arrow_forward_ios, size: 16, color: Colors.blue[700]),
-        ],
-      ),
-      onTap: () => _navigateToDetail(index, item),
-    ),
-  );
-}
 }

@@ -12,10 +12,11 @@ class ButtonGlobal extends StatelessWidget {
     this.borderRadius = 8,
     this.fontSize = 18,
     this.fontWeight = FontWeight.w600,
+    this.isLoading = false, // ✅ cukup ini aja
   }) : super(key: key);
 
   final String buttonText;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final Color buttonColor;
   final Color textColor;
   final EdgeInsetsGeometry margin;
@@ -23,33 +24,44 @@ class ButtonGlobal extends StatelessWidget {
   final double borderRadius;
   final double fontSize;
   final FontWeight fontWeight;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
+    final bool disabled = isLoading || onTap == null;
+    final Color bgColor = disabled ? Colors.grey : buttonColor;
+    final Color fgColor = disabled ? Colors.white : textColor;
+
     return InkWell(
-      onTap: onTap,
+      onTap: disabled ? null : onTap,
       child: Container(
         margin: margin,
         alignment: Alignment.center,
         height: height,
         decoration: BoxDecoration(
-          color: buttonColor,
+          color: isLoading ? buttonColor.withOpacity(0.6) : bgColor,
           borderRadius: BorderRadius.circular(borderRadius),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-            ),
-          ]
-        ), 
-        child: Text(
-          buttonText,
-          style: TextStyle(
-            color: textColor,
-            fontSize: fontSize,
-            fontWeight: fontWeight,
-          ),
+            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10),
+          ],
         ),
+        child: isLoading
+            ? const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
+              )
+            : Text(
+                buttonText,
+                style: TextStyle(
+                  color: fgColor,
+                  fontSize: fontSize,
+                  fontWeight: fontWeight,
+                ),
+              ),
       ),
     );
   }
