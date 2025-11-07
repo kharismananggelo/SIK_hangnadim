@@ -543,6 +543,7 @@ class _DaftarState extends State<Daftar> {
                           style: TextStyle(
                             color: Colors.blue,
                             decoration: TextDecoration.underline,
+                            fontSize: 13,
                           ),
                         ),
                       ),

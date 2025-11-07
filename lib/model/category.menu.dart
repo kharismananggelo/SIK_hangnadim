@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:sik_hangnadim_mobile/pages/SIK/sik_form.dart';
 import 'package:sik_hangnadim_mobile/pages/approvals_page.dart';
+import '../pages/user/usermanagement.dart';
 import '../widgets/appbar.dart';
 import '../pages/masterData/index.dart';
 import '../pages/vendor/vendor_index.dart';
 import '../pages/Approver/index.dart'; // Sesuaikan path dengan struktur folder Anda
 import '../Approval/approval_index.dart'; // Sesuaikan path dengan struktur folder Anda
 import '../pages/SIK/SIK_index.dart'; // Sesuaikan path dengan struktur folder Anda
-
 
 class CategoriModel {
   final String name;
@@ -37,7 +37,8 @@ class CategoriModel {
             context,
             MaterialPageRoute(builder: (context) => MasterDataPage()),
           );
-      },      ),
+        },
+      ),
     );
 
     categories.add(
@@ -114,27 +115,27 @@ class CategoriModel {
 
   // 1. Masterdata
   static void _navigateToMasterData(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => MasterDataPage()));
+  }
+
+  // 2. Approver - Navigate to ApproverIndexPage
+  static void _navigateToApprover(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
-         builder: (context) => MasterDataPage(),
+        builder: (context) =>
+            ApproverIndexPage(), // Arahkan ke halaman index approver yang sudah ada
       ),
     );
   }
 
-  // 2. Approver - Navigate to ApproverIndexPage
-static void _navigateToApprover(BuildContext context) {
-  Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (context) => ApproverIndexPage(), // Arahkan ke halaman index approver yang sudah ada
-    ),
-  );
-}
-
   // 3. Persetujuan - METHOD YANG DIBUTUHKAN
   static void _navigateToPersetujuan(BuildContext context) {
     Navigator.of(context).push(
-       MaterialPageRoute(
-        builder: (context) => ApprovalIndexPage(), // Arahkan ke halaman index approver yang sudah ada
+      MaterialPageRoute(
+        builder: (context) =>
+            ApprovalIndexPage(), // Arahkan ke halaman index approver yang sudah ada
       ),
     );
   }
@@ -142,8 +143,9 @@ static void _navigateToApprover(BuildContext context) {
   // 4. SIK - METHOD YANG DIBUTUHKAN
   static void _navigateToSIK(BuildContext context) {
     Navigator.of(context).push(
-       MaterialPageRoute(
-        builder: (context) => SIKPage(), // Arahkan ke halaman index approver yang sudah ada
+      MaterialPageRoute(
+        builder: (context) =>
+            SIKPage(), // Arahkan ke halaman index approver yang sudah ada
       ),
     );
   }
@@ -152,43 +154,21 @@ static void _navigateToApprover(BuildContext context) {
   static void _navigateToVendor(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => VendorPage(), // Arahkan ke halaman index approver yang sudah ada
+        builder: (context) =>
+            VendorPage(), // Arahkan ke halaman index approver yang sudah ada
       ),
     );
   }
 
   // 6. Manajemen User
   static void _navigateToManajemenUser(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          appBar: CustomAppBar(
-            title: 'Manajemen User',
-            showBackButton: true,
-            onBackPressed: () => Navigator.of(context).pop(),
-          ),
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.manage_accounts, size: 64, color: Colors.teal),
-                SizedBox(height: 16),
-                Text(
-                  'Halaman Manajemen User',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-                Text('Manajemen pengguna sistem'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => UserManagementPage()));
   }
 
   // ===== METHOD UNTUK MENU API (OPSIONAL) =====
-  
+
   // static void _navigateToWorkTypes(BuildContext context) {
   //   Navigator.push(context, MaterialPageRoute(builder: (context) => WorkTypesPage()));
   // }

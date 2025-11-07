@@ -43,11 +43,12 @@ class _VendorPageState extends State<VendorPage> {
       } else {
         _filteredData = _data.where((item) {
           final legalName = item['legal_name']?.toString().toLowerCase() ?? '';
-          final userName = item['user']?['name']?.toString().toLowerCase() ?? '';
+          final userName =
+              item['user']?['name']?.toString().toLowerCase() ?? '';
           final email = item['user']?['email']?.toString().toLowerCase() ?? '';
           return legalName.contains(query.toLowerCase()) ||
-                 userName.contains(query.toLowerCase()) ||
-                 email.contains(query.toLowerCase());
+              userName.contains(query.toLowerCase()) ||
+              email.contains(query.toLowerCase());
         }).toList();
       }
     });
@@ -75,7 +76,7 @@ class _VendorPageState extends State<VendorPage> {
       print('🔄 Fetching vendors data');
 
       final data = await MasterDataService.fetchData('vendors');
-      
+
       print('✅ Vendors data fetched successfully, length: ${data.length}');
 
       setState(() {
@@ -83,7 +84,6 @@ class _VendorPageState extends State<VendorPage> {
         _filteredData = data;
         _isLoading = false;
       });
-
     } catch (e) {
       print('❌ Error fetching vendors: $e');
       setState(() {
@@ -96,9 +96,7 @@ class _VendorPageState extends State<VendorPage> {
   void _navigateToCreateForm() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => VendorFormPage(),
-      ),
+      MaterialPageRoute(builder: (context) => VendorFormPage()),
     ).then((refresh) {
       if (refresh == true) {
         _fetchData();
@@ -109,9 +107,7 @@ class _VendorPageState extends State<VendorPage> {
   void _navigateToDetail(int index, dynamic item) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => VendorDetailPage(item: item),
-      ),
+      MaterialPageRoute(builder: (context) => VendorDetailPage(item: item)),
     ).then((refresh) {
       if (refresh == true) {
         _fetchData();
@@ -155,9 +151,9 @@ class _VendorPageState extends State<VendorPage> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFFF8FDFF),     
-              Color(0xFFF5FBFF),     
-              Color(0xFFF2F9FF),     
+              Color(0xFFF8FDFF),
+              Color(0xFFF5FBFF),
+              Color(0xFFF2F9FF),
               Colors.white,
             ],
             stops: [0.0, 0.3, 0.6, 1.0],
@@ -199,7 +195,11 @@ class _VendorPageState extends State<VendorPage> {
                   ),
                   if (_isSearching)
                     IconButton(
-                      icon: Icon(Icons.close, size: 18, color: Colors.grey[500]),
+                      icon: Icon(
+                        Icons.close,
+                        size: 18,
+                        color: Colors.grey[500],
+                      ),
                       onPressed: _clearSearch,
                       padding: EdgeInsets.zero,
                       constraints: BoxConstraints(minWidth: 36),
@@ -271,7 +271,7 @@ class _VendorPageState extends State<VendorPage> {
                       blurRadius: 15,
                       offset: Offset(0, -2),
                       spreadRadius: 2,
-                    )
+                    ),
                   ],
                 ),
                 child: _isLoading
@@ -283,38 +283,40 @@ class _VendorPageState extends State<VendorPage> {
                             SizedBox(height: 16),
                             Text(
                               'Memuat data vendor...',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                              ),
+                              style: TextStyle(color: Colors.grey[600]),
                             ),
                           ],
                         ),
                       )
                     : _errorMessage.isNotEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
-                                SizedBox(height: 16),
-                                Text(
-                                  _errorMessage,
-                                  style: TextStyle(color: Colors.grey[600]),
-                                  textAlign: TextAlign.center,
-                                ),
-                                SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: _fetchData,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  child: Text('Coba Lagi'),
-                                ),
-                              ],
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 64,
+                              color: Colors.grey[400],
                             ),
-                          )
-                        : _buildSimpleList(),
+                            SizedBox(height: 16),
+                            Text(
+                              _errorMessage,
+                              style: TextStyle(color: Colors.grey[600]),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _fetchData,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: Text('Coba Lagi'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _buildSimpleList(),
               ),
             ),
           ],
@@ -325,34 +327,28 @@ class _VendorPageState extends State<VendorPage> {
 
   Widget _buildSimpleList() {
     final displayData = _isSearching ? _filteredData : _data;
-    
+
     if (displayData.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              _isSearching ? Icons.search_off : Icons.business_center_outlined, 
-              size: 64, 
-              color: Colors.grey[400]
+              _isSearching ? Icons.search_off : Icons.business_center_outlined,
+              size: 64,
+              color: Colors.grey[400],
             ),
             SizedBox(height: 16),
             Text(
               _isSearching ? 'Tidak ada vendor ditemukan' : 'Tidak ada vendor',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
             SizedBox(height: 8),
             Text(
-              _isSearching 
-                ? 'Coba dengan kata kunci lain' 
-                : 'Klik tombol + untuk menambah vendor',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[500],
-              ),
+              _isSearching
+                  ? 'Coba dengan kata kunci lain'
+                  : 'Klik tombol + untuk menambah vendor',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
             ),
           ],
         ),
@@ -408,18 +404,12 @@ class _VendorPageState extends State<VendorPage> {
             SizedBox(height: 4),
             Text(
               item['user']?['name']?.toString() ?? 'No Contact',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
             SizedBox(height: 2),
             Text(
               item['user']?['email']?.toString() ?? 'No Email',
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey[500],
-              ),
+              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
             ),
           ],
         ),
@@ -429,7 +419,11 @@ class _VendorPageState extends State<VendorPage> {
             color: Colors.blue.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
-          child: Icon(Icons.arrow_forward_ios, size: 14, color: Colors.blue[700]),
+          child: Icon(
+            Icons.arrow_forward_ios,
+            size: 14,
+            color: Colors.blue[700],
+          ),
         ),
         onTap: () => _navigateToDetail(index, item),
       ),
